@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WCS Song Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header>
+  <div class="logo">WCS <span>Song Finder</span></div>
+  <div class="waveform">
+    <div class="waveform-bar"></div>
+    <div class="waveform-bar"></div>
+    <div class="waveform-bar"></div>
+    <div class="waveform-bar"></div>
+    <div class="waveform-bar"></div>
+    <div class="waveform-bar"></div>
+    <div class="waveform-bar"></div>
+  </div>
+  <span class="tagline">Dance-Aware · AI-Curated · WCS-First</span>
+</header>
+
+<div class="app-layout">
+
+  <!-- ── LEFT: Descriptor Panel ── -->
+  <aside class="panel-left">
+    <p class="section-title">Describe your song</p>
+
+    <!-- 1. Emotional Tone -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">💜</span> Emotional Tone
+        <button class="info-btn" data-target="info-tone" aria-label="What is Emotional Tone?">ⓘ</button>
+        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;margin-left:auto">(pick up to 3)</span>
+      </div>
+      <div class="info-panel" id="info-tone">
+        <p>The emotional character of the song — what it asks of the partnership. Pick up to 3 that feel right.</p>
+        <ul>
+          <li><strong>Playful</strong> — Fun, cheeky, musical games between partners.</li>
+          <li><strong>Sultry</strong> — Slow burn, tension, delayed gratification.</li>
+          <li><strong>Melancholic</strong> — Longing, bittersweet, introspective.</li>
+          <li><strong>Aggressive</strong> — Driving energy, sharp, assertive.</li>
+          <li><strong>Romantic</strong> — Warm, connected, intimate.</li>
+          <li><strong>Dark</strong> — Brooding, intense, edgy undertones.</li>
+          <li><strong>Light</strong> — Airy, uplifting, feel-good groove.</li>
+          <li><strong>Triumphant</strong> — Big, swelling builds; great for showcase endings.</li>
+          <li><strong>Nostalgic</strong> — Warm retro soul; classic blues/Motown DNA.</li>
+          <li><strong>Cinematic</strong> — Dramatic arc, big production, soundtrack-level scope.</li>
+          <li><strong>Hypnotic</strong> — Repetitive groove that pulls you in; rewards elasticity.</li>
+        </ul>
+      </div>
+      <div class="pill-group">
+        <div class="pill" data-group="tone" data-value="Playful">Playful</div>
+        <div class="pill" data-group="tone" data-value="Sultry">Sultry</div>
+        <div class="pill" data-group="tone" data-value="Melancholic">Melancholic</div>
+        <div class="pill" data-group="tone" data-value="Aggressive">Aggressive</div>
+        <div class="pill" data-group="tone" data-value="Romantic">Romantic</div>
+        <div class="pill" data-group="tone" data-value="Dark">Dark</div>
+        <div class="pill" data-group="tone" data-value="Light">Light</div>
+        <div class="pill" data-group="tone" data-value="Triumphant">Triumphant</div>
+        <div class="pill" data-group="tone" data-value="Nostalgic">Nostalgic</div>
+        <div class="pill" data-group="tone" data-value="Cinematic">Cinematic</div>
+        <div class="pill" data-group="tone" data-value="Hypnotic">Hypnotic</div>
+      </div>
+    </div>
+
+    <!-- 2. Tempo Feel -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🥁</span> Tempo Feel
+        <button class="info-btn" data-target="info-tempo" aria-label="What is Tempo Feel?">ⓘ</button>
+      </div>
+      <div class="info-panel" id="info-tempo">
+        <p>How fast the song <em>feels</em> to dance — not just the BPM. Two songs at 110 BPM can dance completely differently.</p>
+        <ul>
+          <li><strong>Slow</strong> — stretchy, breathy, bluesy. Lots of room for connection and delay.</li>
+          <li><strong>Medium</strong> — groove-heavy, conversational. The WCS sweet spot.</li>
+          <li><strong>Fast</strong> — reactive, playful, athletic. Less time for decoration.</li>
+        </ul>
+      </div>
+      <div class="radio-group">
+        <div class="radio-btn" data-value="Slow">Slow</div>
+        <div class="radio-btn selected" data-value="Medium">Medium</div>
+        <div class="radio-btn" data-value="Fast">Fast</div>
+      </div>
+    </div>
+
+    <!-- 2. Phrase Predictability -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🔄</span> Phrase Predictability
+        <button class="info-btn" data-target="info-predict" aria-label="What is Phrase Predictability?">ⓘ</button>
+      </div>
+      <div class="info-panel" id="info-predict">
+        <p>How reliably the song resolves its musical phrases on the expected count.</p>
+        <ul>
+          <li><strong>1 – Very Predictable</strong> — Clean 8-counts, textbook phrasing. Great for beginners learning to hear music.</li>
+          <li><strong>3 – Moderate</strong> — Some surprises, mostly lands where you expect it.</li>
+          <li><strong>5 – Deceptive</strong> — Fake-outs, irregular phrase lengths, delayed resolutions. Rewards dancers who truly listen.</li>
+        </ul>
+      </div>
+      <div class="slider-container">
+        <div class="slider-row">
+          <input type="range" id="phrase-predict" min="1" max="5" value="3" />
+          <span class="slider-value" id="phrase-predict-val">3</span>
+        </div>
+        <div class="slider-labels">
+          <span class="slider-label-text">Very Predictable</span>
+          <span class="slider-label-text">Deceptive</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Break Behavior -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">⚡</span> Break Behavior
+        <button class="info-btn" data-target="info-break" aria-label="What is Break Behavior?">ⓘ</button>
+      </div>
+      <div class="info-panel" id="info-break">
+        <p>How the song handles musical breaks — moments where the groove pauses or shifts. This is huge for WCS musicality.</p>
+        <ul>
+          <li><strong>Clear breaks</strong> — Obvious, well-telegraphed pauses. Easy to hit.</li>
+          <li><strong>Fake breaks</strong> — Sounds like a break is coming, then keeps going. Tests your patience.</li>
+          <li><strong>Micro-pauses</strong> — Brief, subtle gaps in the groove. Rewards dancers who breathe with the music.</li>
+          <li><strong>Sustained silence</strong> — Long, dramatic pauses. High reward for stillness and connection.</li>
+          <li><strong>No obvious breaks</strong> — Constant groove throughout. Dance the texture instead.</li>
+        </ul>
+      </div>
+      <div class="pill-group">
+        <div class="pill" data-group="break" data-value="Clear breaks">Clear breaks</div>
+        <div class="pill" data-group="break" data-value="Fake breaks">Fake breaks</div>
+        <div class="pill" data-group="break" data-value="Micro-pauses">Micro-pauses</div>
+        <div class="pill" data-group="break" data-value="Sustained silence">Sustained silence</div>
+        <div class="pill" data-group="break" data-value="No obvious breaks">No obvious breaks</div>
+      </div>
+    </div>
+
+    <!-- 4. Accent Sharpness -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🎯</span> Accent Sharpness
+        <button class="info-btn" data-target="info-sharp" aria-label="What is Accent Sharpness?">ⓘ</button>
+      </div>
+      <div class="info-panel" id="info-sharp">
+        <p>How hard-edged the song's accents and hits are. This shapes what kind of body movement the music invites.</p>
+        <ul>
+          <li><strong>Smooth (1)</strong> — Legato, flowing. Encourages stretch, delayed anchors, liquid movement.</li>
+          <li><strong>Balanced (3)</strong> — Mix of flow and definition. Works for both styles.</li>
+          <li><strong>Punchy (5)</strong> — Sharp staccato accents. Rewards body hits, stops, rhythmic footwork, sharp arm styling.</li>
+        </ul>
+      </div>
+      <div class="slider-container">
+        <div class="slider-row">
+          <input type="range" id="accent-sharp" min="1" max="5" value="3" />
+          <span class="slider-value" id="accent-sharp-val">3</span>
+        </div>
+        <div class="slider-labels">
+          <span class="slider-label-text">Smooth</span>
+          <span class="slider-label-text">Punchy</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Elasticity Potential -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🌊</span> Elasticity Potential
+        <button class="info-btn" data-target="info-elastic" aria-label="What is Elasticity Potential?">ⓘ</button>
+      </div>
+      <div class="info-panel" id="info-elastic">
+        <p>A WCS-specific concept. How much the song rewards stretch — waiting, expanding into the space the music gives you.</p>
+        <ul>
+          <li><strong>Low (1)</strong> — Constant, driving pulse. Less room to breathe. Dance on top of the beat.</li>
+          <li><strong>High (4–5)</strong> — The song <em>breathes</em>. Rushing feels wrong. Patience and delay create magic. These songs punish leaders who push and reward followers who wait.</li>
+        </ul>
+        <p style="margin-top:6px">High elasticity songs are where WCS connection truly shines.</p>
+      </div>
+      <div class="slider-container">
+        <div class="slider-row">
+          <input type="range" id="elasticity" min="1" max="5" value="3" />
+          <span class="slider-value" id="elasticity-val">3</span>
+        </div>
+        <div class="slider-labels">
+          <span class="slider-label-text">Low</span>
+          <span class="slider-label-text">Very High</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Risk Level -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🎲</span> Risk Level (Competition)
+        <button class="info-btn" data-target="info-risk" aria-label="What is Risk Level?">ⓘ</button>
+      </div>
+      <div class="info-panel" id="info-risk">
+        <p>Will this song elevate you — or expose you? Risk factors include deceptive phrasing, irregular breaks, tempo shifts, and layered rhythms.</p>
+        <ul>
+          <li><strong>Safe (1–2)</strong> — Predictable, forgiving. Great for prelims or when you want to shine consistently.</li>
+          <li><strong>Moderate (3)</strong> — Some gotchas, but manageable for experienced dancers.</li>
+          <li><strong>High Risk (4–5)</strong> — Irregular, deceptive, unforgiving. In the right hands: spectacular. In the wrong hands: a disaster. Ask yourself: "Do I <em>own</em> this song?"</li>
+        </ul>
+      </div>
+      <div class="slider-container">
+        <div class="slider-row">
+          <input type="range" id="risk-level" min="1" max="5" value="2" />
+          <span class="slider-value" id="risk-level-val">2</span>
+        </div>
+        <div class="slider-labels">
+          <span class="slider-label-text">Safe</span>
+          <span class="slider-label-text">High Risk</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optional context -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">✏️</span> Additional Context <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400">(optional)</span>
+      </div>
+      <textarea
+        id="context-input"
+        placeholder="e.g. &quot;for a J&amp;J comp at Boogie by the Bay&quot;, &quot;beginner class on musicality hits&quot;, &quot;late-night social dancing&quot;"
+      ></textarea>
+    </div>
+
+    <button class="btn-find" id="find-btn">FIND MY SONGS</button>
+  </aside>
+
+  <!-- ── RIGHT: Results Panel ── -->
+  <main class="panel-right" id="results-panel">
+    <div class="empty-state">
+      <div class="icon">🎧</div>
+      <h2>Set your vibe, find your groove</h2>
+      <p>Dial in the 7 dance descriptors on the left and Claude will curate real songs that match your WCS musicality goals — with dance notes and competition context.</p>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
