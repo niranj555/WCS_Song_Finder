@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,13 +23,41 @@
     <div class="waveform-bar"></div>
   </div>
   <span class="tagline">Dance-Aware · AI-Curated · WCS-First</span>
+  <button class="theme-toggle" id="theme-toggle" title="Toggle theme">☀️</button>
+  <a href="/logout" class="logout-btn">Sign out</a>
 </header>
 
 <div class="app-layout">
 
   <!-- ── LEFT: Descriptor Panel ── -->
   <aside class="panel-left">
+
+    <div class="preset-section">
+      <p class="section-title">Quick Presets</p>
+      <div class="preset-grid" id="preset-grid"></div>
+    </div>
+
     <p class="section-title">Describe your song</p>
+
+    <!-- 0. Genre -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🎵</span> Genre
+        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;margin-left:auto">(multi-select)</span>
+      </div>
+      <div class="pill-group">
+        <div class="pill genre-all selected" data-group="genre" data-value="All">All</div>
+        <div class="pill" data-group="genre" data-value="Neo-Soul">Neo-Soul</div>
+        <div class="pill" data-group="genre" data-value="R&B">R&B</div>
+        <div class="pill" data-group="genre" data-value="Blues">Blues</div>
+        <div class="pill" data-group="genre" data-value="Pop">Pop</div>
+        <div class="pill" data-group="genre" data-value="Hip-Hop">Hip-Hop</div>
+        <div class="pill" data-group="genre" data-value="Jazz">Jazz</div>
+        <div class="pill" data-group="genre" data-value="Country">Country</div>
+        <div class="pill" data-group="genre" data-value="Electronic">Electronic</div>
+        <div class="pill" data-group="genre" data-value="Latin">Latin</div>
+      </div>
+    </div>
 
     <!-- 1. Emotional Tone -->
     <div class="descriptor-group">
@@ -42,8 +70,7 @@
         <p>The emotional character of the song — what it asks of the partnership. Pick up to 3 that feel right.</p>
         <ul>
           <li><strong>Playful</strong> — Fun, cheeky, musical games between partners.</li>
-          <li><strong>Sultry</strong> — Slow burn, tension, delayed gratification.</li>
-          <li><strong>Melancholic</strong> — Longing, bittersweet, introspective.</li>
+          <li><strong>Soulful</strong> — Longing, bittersweet, introspective.</li>
           <li><strong>Aggressive</strong> — Driving energy, sharp, assertive.</li>
           <li><strong>Romantic</strong> — Warm, connected, intimate.</li>
           <li><strong>Dark</strong> — Brooding, intense, edgy undertones.</li>
@@ -56,8 +83,7 @@
       </div>
       <div class="pill-group">
         <div class="pill" data-group="tone" data-value="Playful">Playful</div>
-        <div class="pill" data-group="tone" data-value="Sultry">Sultry</div>
-        <div class="pill" data-group="tone" data-value="Melancholic">Melancholic</div>
+        <div class="pill" data-group="tone" data-value="Soulful">Soulful</div>
         <div class="pill" data-group="tone" data-value="Aggressive">Aggressive</div>
         <div class="pill" data-group="tone" data-value="Romantic">Romantic</div>
         <div class="pill" data-group="tone" data-value="Dark">Dark</div>
@@ -219,26 +245,30 @@
       </div>
     </div>
 
-    <!-- Optional context -->
-    <div class="descriptor-group">
-      <div class="descriptor-label">
-        <span class="icon">✏️</span> Additional Context <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400">(optional)</span>
-      </div>
-      <textarea
-        id="context-input"
-        placeholder="e.g. &quot;for a J&amp;J comp at Boogie by the Bay&quot;, &quot;beginner class on musicality hits&quot;, &quot;late-night social dancing&quot;"
-      ></textarea>
-    </div>
-
     <button class="btn-find" id="find-btn">FIND MY SONGS</button>
   </aside>
 
   <!-- ── RIGHT: Results Panel ── -->
-  <main class="panel-right" id="results-panel">
-    <div class="empty-state">
-      <div class="icon">🎧</div>
-      <h2>Set your vibe, find your groove</h2>
-      <p>Dial in the 7 dance descriptors on the left and Claude will curate real songs that match your WCS musicality goals — with dance notes and competition context.</p>
+  <main class="panel-right">
+    <div class="panel-tabs">
+      <button class="tab-btn active" data-tab="results">Results</button>
+      <button class="tab-btn" data-tab="history">History <span class="tab-count hidden" id="history-count"></span></button>
+      <button class="tab-btn" data-tab="favorites">Favorites <span class="tab-count hidden" id="fav-count"></span></button>
+    </div>
+    <div id="tab-results" class="tab-content">
+      <div id="results-panel">
+        <div class="empty-state">
+          <div class="icon">🎧</div>
+          <h2>Set your vibe, find your groove</h2>
+          <p>Dial in the descriptors or pick a preset, and Claude will curate real songs that match your WCS musicality goals.</p>
+        </div>
+      </div>
+    </div>
+    <div id="tab-history" class="tab-content hidden">
+      <div id="history-panel"></div>
+    </div>
+    <div id="tab-favorites" class="tab-content hidden">
+      <div id="favorites-panel"></div>
     </div>
   </main>
 
