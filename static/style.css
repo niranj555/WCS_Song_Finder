@@ -365,6 +365,44 @@ textarea:focus { border-color: var(--accent); }
 
 .btn-find.loading { animation: pulse-btn 1.2s ease-in-out infinite; }
 
+.btn-djset {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+}
+.btn-djset:hover { background: rgba(0, 212, 255, 0.08); box-shadow: var(--glow-cyan); }
+.btn-djset:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-djset.loading { animation: pulse-btn 1.2s ease-in-out infinite; }
+
+.btn-covers {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #bb88ff;
+  background: transparent;
+  color: #bb88ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+}
+.btn-covers:hover { background: rgba(187, 136, 255, 0.08); box-shadow: 0 0 12px rgba(187,136,255,0.2); }
+.btn-covers:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-covers.loading { animation: pulse-btn 1.2s ease-in-out infinite; }
+
 @keyframes pulse-btn {
   0%, 100% { opacity: 0.7; }
   50%       { opacity: 1; }
@@ -788,6 +826,140 @@ textarea:focus { border-color: var(--accent); }
 .history-descriptors { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
 .hdesc-item { font-size: 0.72rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; color: var(--text-muted); }
 .hdesc-key { color: var(--text-dim); margin-right: 3px; }
+
+/* ── Playlist ── */
+.playlist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.playlist-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.playlist-selector {
+  flex: 1;
+  min-width: 140px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  outline: none;
+  cursor: pointer;
+}
+.playlist-selector:focus { border-color: var(--accent); }
+.playlist-name-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.83rem;
+  outline: none;
+}
+.playlist-name-input:focus { border-color: var(--accent); }
+.playlist-action-btn {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.playlist-new-btn:hover { border-color: var(--accent); color: var(--accent); }
+.playlist-copy-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.playlist-clear-btn:hover { border-color: #ffaa44; color: #ffaa44; }
+.playlist-del-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+/* ── Add-to-playlist button ── */
+.add-playlist-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-dim);
+  font-size: 1rem;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.add-playlist-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* ── DJ Set ── */
+.covers-banner {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #bb88ff;
+  border: 1px solid rgba(187, 136, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+.cover-type-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+.cover-original {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.cover-original strong { color: var(--text-muted); }
+
+.djset-banner {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+.energy-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
 
 /* ── Light theme ── */
 [data-theme="light"] {

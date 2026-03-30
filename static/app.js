@@ -22,8 +22,20 @@ const MAX_HISTORY = 15;
 const LS_HISTORY = "wcs_history";
 const LS_FAVORITES = "wcs_favorites";
 const LS_THEME = "wcs_theme";
+const LS_PLAYLISTS = "wcs_playlists";   // [{id, name, songs[]}]
+const LS_ACTIVE_PL = "wcs_active_pl";  // active playlist id
 const SONG_REGISTRY = new Map();
 let _cardSeq = 0;
+
+const ENERGY_COLORS = {
+  "Opener":      "#00d4ff",
+  "Early Build": "#33ffaa",
+  "Mid-Set":     "#00ff87",
+  "Peak":        "#ff6b6b",
+  "Cool-Down":   "#bb88ff",
+  "Late Night":  "#5588ff",
+  "Closer":      "#ffcc44",
+};
 
 // ── State ────────────────────────────────────────────────────
 const state = {
@@ -55,8 +67,11 @@ document.addEventListener("DOMContentLoaded", () => {
   initEventDelegation();
   syncPillsToState();
   findBtn.addEventListener("click", handleFind);
+  document.getElementById("djset-btn").addEventListener("click", handleDJSet);
+  document.getElementById("covers-btn").addEventListener("click", handleCovers);
   renderHistoryPanel();
   renderFavoritesPanel();
+  renderPlaylistPanel();
   updateBadges();
 });
 
@@ -230,17 +245,14 @@ function initPills() {
 
       if (group === "genre") {
         if (value === "All") {
-          // Select All, deselect everything else
           state.genre = [];
           document.querySelectorAll(".pill[data-group='genre']").forEach((p) => p.classList.remove("selected"));
           pill.classList.add("selected");
         } else {
-          // Toggle this genre, deselect All
           document.querySelector(".genre-all").classList.remove("selected");
           if (state.genre.includes(value)) {
             state.genre = state.genre.filter((v) => v !== value);
             pill.classList.remove("selected");
-            // If nothing selected, revert to All
             if (state.genre.length === 0) {
               document.querySelector(".genre-all").classList.add("selected");
             }
@@ -297,6 +309,17 @@ function initInfoPanels() {
 // ── Event Delegation ─────────────────────────────────────────
 function initEventDelegation() {
   document.body.addEventListener("click", (e) => {
+    // Playlist "+" button
+    const playlistBtn = e.target.closest(".add-playlist-btn");
+    if (playlistBtn) {
+      e.stopPropagation();
+      const card = playlistBtn.closest(".song-card");
+      if (!card) return;
+      const song = SONG_REGISTRY.get(card.dataset.key);
+      if (song) addToPlaylist(song);
+      return;
+    }
+
     // Heart button
     const heartBtn = e.target.closest(".heart-btn");
     if (heartBtn) {
@@ -336,7 +359,7 @@ function initEventDelegation() {
   });
 }
 
-// ── Find Handler ─────────────────────────────────────────────
+// ── Find Handler (SSE streaming) ──────────────────────────────
 async function handleFind() {
   if (state.breakBehavior.length === 0) {
     showToast("Please select at least one Break Behavior.");
@@ -351,7 +374,118 @@ async function handleFind() {
   findBtn.textContent = "READING THE GROOVE…";
   findBtn.classList.add("loading");
   switchTab("results");
-  showSkeleton();
+  showSkeleton(5);
+
+  const payload = {
+    tempo_feel: state.tempoFeel,
+    phrase_predictability: state.phrasePredict,
+    break_behavior: state.breakBehavior,
+    accent_sharpness: state.accentSharp,
+    elasticity_potential: state.elasticity,
+    risk_level: state.riskLevel,
+    emotional_tone: state.emotionalTone,
+    genre: state.genre,
+    additional_context: "",
+  };
+
+  try {
+    const res = await fetch("/recommend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let songsRendered = 0;
+    let allSongs = [];
+    let curatorNote = "";
+    let awaitingDoneData = false;
+    let awaitingErrorData = false;
+
+    // Replace skeleton with live grid
+    resultsPanel().innerHTML = `<div id="live-curator-note"></div><div class="songs-grid" id="streaming-grid"></div>`;
+    const gridEl = document.getElementById("streaming-grid");
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by double newlines
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop(); // keep incomplete event
+
+      for (const part of parts) {
+        if (!part.trim()) continue;
+        const lines = part.split("\n");
+        let eventType = null;
+        let dataStr = null;
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+          else if (line.startsWith("data: ")) dataStr = line.slice(6);
+        }
+
+        if (!dataStr) continue;
+
+        let parsed;
+        try { parsed = JSON.parse(dataStr); }
+        catch { continue; }
+
+        if (eventType === "error") {
+          throw new Error(parsed.error || "Streaming error");
+        } else if (eventType === "done") {
+          curatorNote = parsed.curator_note || "";
+          const noteEl = document.getElementById("live-curator-note");
+          if (noteEl && curatorNote) {
+            noteEl.innerHTML = `<div class="curator-note"><strong>Curator's Note</strong>${escHtml(curatorNote)}</div>`;
+          }
+        } else {
+          // Regular song
+          allSongs.push(parsed);
+          gridEl.insertAdjacentHTML("beforeend", renderCard(parsed, songsRendered++));
+        }
+      }
+    }
+
+    addToHistory(payload, { recommendations: allSongs, curator_note: curatorNote }, state.activePreset);
+
+    if (allSongs.length === 0) showEmptyState();
+
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+    showEmptyState();
+  } finally {
+    findBtn.disabled = false;
+    findBtn.textContent = "FIND MY SONGS";
+    findBtn.classList.remove("loading");
+  }
+}
+
+// ── DJ Set Handler ────────────────────────────────────────────
+async function handleDJSet() {
+  if (state.breakBehavior.length === 0) {
+    showToast("Please select at least one Break Behavior.");
+    return;
+  }
+  if (state.emotionalTone.length === 0) {
+    showToast("Please select at least one Emotional Tone.");
+    return;
+  }
+
+  const djBtn = document.getElementById("djset-btn");
+  djBtn.disabled = true;
+  djBtn.textContent = "BUILDING YOUR SET…";
+  djBtn.classList.add("loading");
+  switchTab("results");
+  showSkeleton(7);
 
   try {
     const payload = {
@@ -366,7 +500,7 @@ async function handleFind() {
       additional_context: "",
     };
 
-    const res = await fetch("/recommend", {
+    const res = await fetch("/djset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -378,16 +512,93 @@ async function handleFind() {
     }
 
     const data = await res.json();
-    addToHistory(payload, data, state.activePreset);
-    renderResults(data);
+    renderDJSet(data);
   } catch (err) {
     showToast(`Error: ${err.message}`);
     showEmptyState();
   } finally {
-    findBtn.disabled = false;
-    findBtn.textContent = "FIND MY SONGS";
-    findBtn.classList.remove("loading");
+    djBtn.disabled = false;
+    djBtn.textContent = "BUILD DJ SET";
+    djBtn.classList.remove("loading");
   }
+}
+
+// ── Covers & Remixes Handler ──────────────────────────────────
+async function handleCovers() {
+  if (state.breakBehavior.length === 0) {
+    showToast("Please select at least one Break Behavior.");
+    return;
+  }
+  if (state.emotionalTone.length === 0) {
+    showToast("Please select at least one Emotional Tone.");
+    return;
+  }
+
+  const btn = document.getElementById("covers-btn");
+  btn.disabled = true;
+  btn.textContent = "SEARCHING…";
+  btn.classList.add("loading");
+  switchTab("results");
+  showSkeleton(5);
+
+  try {
+    const payload = {
+      tempo_feel: state.tempoFeel,
+      phrase_predictability: state.phrasePredict,
+      break_behavior: state.breakBehavior,
+      accent_sharpness: state.accentSharp,
+      elasticity_potential: state.elasticity,
+      risk_level: state.riskLevel,
+      emotional_tone: state.emotionalTone,
+      genre: state.genre,
+      additional_context: "",
+    };
+
+    const res = await fetch("/covers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    renderCoversRemixes(data);
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+    showEmptyState();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "COVERS & REMIXES";
+    btn.classList.remove("loading");
+  }
+}
+
+function renderCoversRemixes(data) {
+  const { recommendations = [], curator_note = "" } = data;
+  const noteHtml = curator_note
+    ? `<div class="curator-note"><strong>Curator's Note</strong>${escHtml(curator_note)}</div>`
+    : "";
+  const cardsHtml = recommendations.map((song, i) => renderCoverCard(song, i)).join("");
+  resultsPanel().innerHTML = `
+    <div class="covers-banner">COVERS &amp; REMIXES</div>
+    ${noteHtml}
+    <div class="songs-grid">${cardsHtml}</div>`;
+}
+
+function renderCoverCard(song, index) {
+  const typeColor = song.type === "remix" ? "#00d4ff" : "#bb88ff";
+  const typeBadge = `<span class="cover-type-badge" style="background:${typeColor}22;color:${typeColor};border:1px solid ${typeColor}55">${escHtml((song.type || "remix").toUpperCase())}</span>`;
+  const originalLine = (song.original_title && song.original_artist)
+    ? `<div class="cover-original">Originally by <strong>${escHtml(song.original_artist)}</strong> · ${escHtml(song.original_title)}</div>`
+    : "";
+  const base = renderCard(song, index);
+  return base
+    .replace('<div class="song-number">', `${typeBadge}<div class="song-number">`)
+    .replace('<div class="song-card-body">', `<div class="song-card-body">${originalLine}`);
 }
 
 // ── Find Similar Handler ──────────────────────────────────────
@@ -395,7 +606,7 @@ async function handleFindSimilar(title, artist, btn) {
   btn.disabled = true;
   btn.textContent = "Finding…";
   switchTab("results");
-  showSkeleton();
+  showSkeleton(5);
 
   try {
     const res = await fetch("/similar", {
@@ -431,8 +642,8 @@ function showEmptyState() {
     </div>`;
 }
 
-function showSkeleton() {
-  const cards = Array.from({ length: 5 }, () => `
+function showSkeleton(count = 5) {
+  const cards = Array.from({ length: count }, () => `
     <div class="skeleton-card">
       <div class="skeleton-line title"></div>
       <div class="skeleton-line artist"></div>
@@ -462,6 +673,25 @@ function renderResults(data) {
     ${similarBanner}
     ${noteHtml}
     <div class="songs-grid">${cardsHtml}</div>`;
+}
+
+function renderDJSet(data) {
+  const { set = [], curator_note = "" } = data;
+  const noteHtml = curator_note
+    ? `<div class="curator-note"><strong>DJ Set Curator's Note</strong>${escHtml(curator_note)}</div>`
+    : "";
+  const cardsHtml = set.map((song, i) => renderDJCard(song, i)).join("");
+  resultsPanel().innerHTML = `
+    <div class="djset-banner">DJ SET — Energy Arc (${set.length} songs)</div>
+    ${noteHtml}
+    <div class="songs-grid">${cardsHtml}</div>`;
+}
+
+function renderDJCard(song, index) {
+  const color = ENERGY_COLORS[song.energy_label] || "var(--accent)";
+  const energyBadge = `<span class="energy-label" style="background:${color}22;color:${color};border:1px solid ${color}55">${escHtml(song.energy_label || "")}</span>`;
+  const base = renderCard(song, index);
+  return base.replace('<div class="song-number">', `${energyBadge}<div class="song-number">`);
 }
 
 function renderCard(song, index) {
@@ -510,6 +740,7 @@ function renderCard(song, index) {
           <div class="song-artist">${escHtml(artist)}</div>
         </div>
         <div class="song-header-actions">
+          <button class="add-playlist-btn" title="Add to playlist">+</button>
           <button class="${heartClass}" title="Add to favorites">${heartChar}</button>
           <span class="expand-chevron">›</span>
         </div>
@@ -604,6 +835,190 @@ function renderFavoritesPanel() {
   panel.innerHTML = `<div class="songs-grid">${cardsHtml}</div>`;
 }
 
+// ── Playlists (multiple) ──────────────────────────────────────
+function getPlaylists() {
+  try { return JSON.parse(localStorage.getItem(LS_PLAYLISTS) || "[]"); }
+  catch { return []; }
+}
+
+function savePlaylists(pls) {
+  localStorage.setItem(LS_PLAYLISTS, JSON.stringify(pls));
+  updateBadges();
+  renderPlaylistPanel();
+}
+
+function getActivePlId() {
+  return localStorage.getItem(LS_ACTIVE_PL) || null;
+}
+
+function getActivePl() {
+  const pls = getPlaylists();
+  const id = getActivePlId();
+  return pls.find((p) => p.id === id) || pls[0] || null;
+}
+
+function setActivePl(id) {
+  localStorage.setItem(LS_ACTIVE_PL, id);
+  renderPlaylistPanel();
+  updateBadges();
+}
+
+function createPlaylist() {
+  const pls = getPlaylists();
+  const id = `pl_${Date.now()}`;
+  const name = `Playlist ${pls.length + 1}`;
+  pls.push({ id, name, songs: [] });
+  localStorage.setItem(LS_ACTIVE_PL, id);
+  savePlaylists(pls);
+  // Focus the name input after render
+  setTimeout(() => {
+    const el = document.getElementById("playlist-name");
+    if (el) { el.focus(); el.select(); }
+  }, 50);
+}
+
+function deleteActivePl() {
+  const pls = getPlaylists();
+  const active = getActivePl();
+  if (!active) return;
+  const idx = pls.findIndex((p) => p.id === active.id);
+  pls.splice(idx, 1);
+  // Switch to nearest remaining playlist
+  const next = pls[Math.max(0, idx - 1)];
+  if (next) localStorage.setItem(LS_ACTIVE_PL, next.id);
+  else localStorage.removeItem(LS_ACTIVE_PL);
+  savePlaylists(pls);
+}
+
+function addToPlaylist(song) {
+  const pls = getPlaylists();
+  const activeId = getActivePlId();
+
+  // Find active playlist within the same array we'll save
+  let activePl = pls.find((p) => p.id === activeId) || pls[0] || null;
+
+  // Auto-create first playlist if none exist
+  if (!activePl) {
+    const id = `pl_${Date.now()}`;
+    activePl = { id, name: "Playlist 1", songs: [] };
+    pls.push(activePl);
+    localStorage.setItem(LS_ACTIVE_PL, id);
+  }
+
+  if (activePl.songs.some((s) => s.title === song.title && s.artist === song.artist)) {
+    showToast(`"${song.title}" is already in "${activePl.name}".`);
+    return;
+  }
+  activePl.songs.push(song);
+  savePlaylists(pls);
+  showToast(`Added "${song.title}" to "${activePl.name}"!`);
+}
+
+function renderPlaylistPanel() {
+  const panel = document.getElementById("playlist-panel");
+  if (!panel) return;
+  const pls = getPlaylists();
+
+  if (pls.length === 0) {
+    panel.innerHTML = `
+      <div class="playlist-toolbar">
+        <button class="playlist-action-btn playlist-new-btn" id="playlist-new-btn">+ New Playlist</button>
+      </div>
+      <div class="empty-state">
+        <div class="icon">🎶</div>
+        <h2>No playlists yet</h2>
+        <p>Tap + on any song card to add it to a playlist, or create one now.</p>
+      </div>`;
+    document.getElementById("playlist-new-btn").addEventListener("click", createPlaylist);
+    return;
+  }
+
+  const active = getActivePl();
+  const activeId = active ? active.id : pls[0].id;
+
+  const selectorOptions = pls.map((p) =>
+    `<option value="${p.id}" ${p.id === activeId ? "selected" : ""}>${escHtml(p.name)} (${p.songs.length})</option>`
+  ).join("");
+
+  panel.innerHTML = `
+    <div class="playlist-toolbar">
+      <select class="playlist-selector" id="playlist-selector">${selectorOptions}</select>
+      <button class="playlist-action-btn playlist-new-btn" id="playlist-new-btn">+ New</button>
+      <button class="playlist-action-btn playlist-copy-btn" id="playlist-copy-btn">Copy</button>
+      <button class="playlist-action-btn playlist-del-btn" id="playlist-del-btn">Delete</button>
+    </div>
+    <div class="playlist-name-row">
+      <input type="text" class="playlist-name-input" id="playlist-name"
+             placeholder="Rename playlist…"
+             value="${escHtml(active ? active.name : "")}" />
+      <button class="playlist-action-btn playlist-clear-btn" id="playlist-clear-btn">Clear songs</button>
+    </div>
+    ${active && active.songs.length > 0
+      ? `<div class="songs-grid">${active.songs.map((song, i) => renderCard(song, i)).join("")}</div>`
+      : `<div class="empty-state" style="padding:40px 0"><div class="icon" style="font-size:2rem">🎵</div><p>No songs yet — tap + on any card.</p></div>`
+    }`;
+
+  document.getElementById("playlist-selector").addEventListener("change", (e) => setActivePl(e.target.value));
+  document.getElementById("playlist-new-btn").addEventListener("click", createPlaylist);
+  document.getElementById("playlist-copy-btn").addEventListener("click", copyPlaylistToClipboard);
+  document.getElementById("playlist-del-btn").addEventListener("click", () => {
+    if (confirm(`Delete "${active ? active.name : "this playlist"}"?`)) deleteActivePl();
+  });
+  document.getElementById("playlist-name").addEventListener("input", (e) => {
+    const pls2 = getPlaylists();
+    const pl = pls2.find((p) => p.id === activeId);
+    if (pl) {
+      pl.name = e.target.value;
+      localStorage.setItem(LS_PLAYLISTS, JSON.stringify(pls2));
+      // Update selector option text live
+      const opt = document.querySelector(`#playlist-selector option[value="${activeId}"]`);
+      if (opt) opt.textContent = `${e.target.value} (${pl.songs.length})`;
+    }
+  });
+  document.getElementById("playlist-clear-btn").addEventListener("click", () => {
+    if (confirm("Remove all songs from this playlist?")) {
+      const pls2 = getPlaylists();
+      const pl = pls2.find((p) => p.id === activeId);
+      if (pl) { pl.songs = []; savePlaylists(pls2); }
+    }
+  });
+}
+
+function copyPlaylistToClipboard() {
+  const active = getActivePl();
+  const songs = active ? active.songs : [];
+  const name = active ? active.name : "My WCS Playlist";
+  const lines = [`# ${name}`, ""];
+  songs.forEach((song, i) => lines.push(`${i + 1}. ${song.title} — ${song.artist}`));
+  const text = lines.join("\n");
+
+  if (songs.length === 0) { showToast("Playlist is empty — nothing to copy."); return; }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast("Playlist copied to clipboard!"))
+      .catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand("copy");
+    showToast("Playlist copied to clipboard!");
+  } catch {
+    showToast("Copy failed — please select and copy manually.");
+  }
+  document.body.removeChild(ta);
+}
+
 // ── History ───────────────────────────────────────────────────
 function getHistory() {
   try {
@@ -694,9 +1109,12 @@ function replayHistory(id) {
 function updateBadges() {
   const historyCount = document.getElementById("history-count");
   const favCount = document.getElementById("fav-count");
+  const playlistCount = document.getElementById("playlist-count");
 
   const hLen = getHistory().length;
   const fLen = getFavorites().length;
+  const activePl = getActivePl();
+  const pLen = activePl ? activePl.songs.length : 0;
 
   if (historyCount) {
     historyCount.textContent = hLen;
@@ -705,6 +1123,10 @@ function updateBadges() {
   if (favCount) {
     favCount.textContent = fLen;
     favCount.classList.toggle("hidden", fLen === 0);
+  }
+  if (playlistCount) {
+    playlistCount.textContent = pLen;
+    playlistCount.classList.toggle("hidden", pLen === 0);
   }
 }
 
