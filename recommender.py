@@ -141,7 +141,7 @@ ACCURACY RULES — follow these strictly before including any song:
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. "Come and Get It" is Selena Gomez, not Aaliyah. "Greedy" is Tate McRae, not Tame Impala. Always verify the pairing, not just the artist and not just the title.
 
-4. REMIXES AND COVERS ARE WELCOME — BUT MUST BE VERIFIED: Remixes and covers are a core part of WCS culture. Include them when they are a great fit, but only if you can name the specific remixer (e.g. "Kaytranada Remix" — not "Trance Mix" or "Club Mix" with no remixer name) and know where it was released. For covers, only include them if you know the specific release — do not infer a cover exists just because an artist's style suggests they might have recorded it.
+4. REMIXES AND COVERS — VERIFIED ONLY: Include a remix only if you can name the specific remixer (e.g. "Kaytranada Remix" — never "Club Mix" with no name). Include a cover only if you know the specific release. If uncertain, pick a different song entirely.
 
 5. WHEN IN DOUBT, SWAP THE ARTIST: If you are unsure which song to pick for an artist, choose a completely different artist whose relevant song you are 100% certain about. A confident recommendation from a different artist is always better than a guess.
 
@@ -164,7 +164,7 @@ ACCURACY RULES — follow these strictly before including any song:
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. Always verify the pairing — not just the artist and not just the title.
 
-4. REMIXES AND COVERS ARE WELCOME — BUT MUST BE VERIFIED: Remixes and covers are a core part of WCS culture. Include them when they are a great fit, but only if you can name the specific remixer (e.g. "Kaytranada Remix" — not "Trance Mix" or "Club Mix" with no remixer name) and know where it was released. For covers, only include them if you know the specific release — do not infer a cover exists just because an artist's style suggests they might have recorded it.
+4. REMIXES AND COVERS — VERIFIED ONLY: Include a remix only if you can name the specific remixer (e.g. "Kaytranada Remix" — never "Club Mix" with no name). Include a cover only if you know the specific release. If uncertain, pick a different song entirely.
 
 5. WHEN IN DOUBT, SWAP THE ARTIST: Choose a different artist whose relevant song you are 100% certain about rather than guess.
 
@@ -182,7 +182,7 @@ ACCURACY RULES — follow these strictly before including any song:
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. Always verify the pairing — not just the artist and not just the title.
 
-4. REMIXES AND COVERS ARE WELCOME — BUT MUST BE VERIFIED: Remixes and covers are a core part of WCS culture. Include them when they are a great fit, but only if you can name the specific remixer (e.g. "Kaytranada Remix" — not "Trance Mix" or "Club Mix" with no remixer name) and know where it was released. For covers, only include them if you know the specific release — do not infer a cover exists just because an artist's style suggests they might have recorded it.
+4. REMIXES AND COVERS — VERIFIED ONLY: Include a remix only if you can name the specific remixer (e.g. "Kaytranada Remix" — never "Club Mix" with no name). Include a cover only if you know the specific release. If uncertain, pick a different song entirely.
 
 5. WHEN IN DOUBT, SWAP THE ARTIST: Choose a different artist whose relevant song you are 100% certain about rather than guess.
 
@@ -248,7 +248,7 @@ Recommend exactly 5 real songs that match these dance descriptors. Return ONLY t
 }
 
 All 5 recommendations must be real songs. Vary the artists. Think across genres that work for WCS.
-Remixes and covers are a core part of WCS culture — actively include them when they fit. Well-known remixes (e.g. Kaytranada, Disclosure, Sweater Beats) and covers of classic songs by different artists add great variety. Only include remixes or covers you are confident actually exist."""
+Include remixes and covers when they fit — named remixer required for remixes, known release required for covers. When in doubt, choose a different song."""
 
     return prompt
 
@@ -300,7 +300,7 @@ Return ONLY this JSON structure:
 }}
 
 All 7 songs must be real. The arc should feel intentional and flow naturally from song to song.
-Remixes and covers are a core part of WCS culture — actively include them when they serve the arc. Well-known remixes (e.g. Kaytranada, Disclosure, Sweater Beats) and covers by different artists add great variety to a set. Only include remixes or covers you are confident actually exist."""
+Include remixes and covers when they serve the arc — named remixer required for remixes, known release required for covers. When in doubt, choose a different song."""
 
 
 # ── Streaming recommendations ─────────────────────────────────
@@ -472,15 +472,13 @@ You understand how a great remix or cover changes the dance feel of a song:
 - A cover reinterprets the emotional tone, sometimes making a dark song playful or vice versa
 - A stripped-down acoustic cover creates intimacy and connection opportunities
 
-ACCURACY RULES — these are strict, not suggestions:
+ACCURACY RULES — strict, not suggestions:
 
-1. KNOW THE RELEASE, NOT JUST THE VIBE: Before including anything, you must be able to state — even silently — WHERE this remix or cover was released: an album name, a remix EP, a film soundtrack, a specific single release. "This artist does covers, so they probably covered this" is not enough. "This sounds like a remix that could exist" is not enough.
+1. COVERS — KNOW THE RELEASE: Only include a cover if you know the specific release (album, EP, soundtrack, single). Do not infer covers from an artist's style or genre.
 
-2. COVERS — THE ARTIST MUST HAVE ACTUALLY RECORDED IT: Do not infer covers from an artist's style or genre. Esperanza Spalding doing jazz covers does NOT mean she recorded Strange Fruit. Nina Simone's vast catalog does NOT mean she recorded every standard. Only include a cover if you know the specific release where it appeared.
+2. REMIXES — NAME THE REMIXER: Every remix must have a specific named producer (e.g. "Kaytranada Remix", "Dave Audé Remix"). "Club Mix" or "Extended Mix" with no named remixer is a hallucination — do not include it.
 
-3. REMIXES — NAME THE REMIXER, NOT JUST THE STYLE: Every remix must have a specific named producer or remixer (e.g. "Kaytranada Remix", "Dave Audé Remix", "Todd Terry Remix"). A vague style descriptor like "Trance Mix", "Club Mix", or "Extended Mix" with no named remixer is a hallucination. Do not include it.
-
-4. WHEN IN DOUBT, PICK A DIFFERENT SONG ENTIRELY: If you are not sure a specific remix or cover exists, do not try to find a close substitute — choose a completely different, well-documented remix or cover by a different artist. Confidence comes first.
+3. WHEN IN DOUBT, PICK A DIFFERENT SONG: Do not guess or substitute. Choose a completely different, well-documented remix or cover you are certain exists.
 
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
@@ -527,7 +525,7 @@ Return ONLY this JSON structure:
   "curator_note": "1-2 sentences about what makes this remix and cover selection special for WCS dancing."
 }}
 
-All 5 must be real, verified remixes or covers. Vary the artists and remixers."""
+All 5 must be verified. Vary the artists and remixers."""
 
 
 def get_covers_remixes(req: DescriptorRequest) -> dict:
