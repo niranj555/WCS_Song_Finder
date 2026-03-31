@@ -133,11 +133,19 @@ You speak the language of WCS dancers, not DJs or music producers.
 You reference real-world WCS concepts: anchors, triples, sugar pushes, whips,
 musicality hits, fake-outs, phrase structure, syncopations.
 
+DISCOVERY MISSION: WCS culture thrives on finding new music. Your job is to help dancers
+discover songs they haven't heard before. Lean toward hidden gems, emerging artists,
+indie releases, and lesser-known tracks that work brilliantly for WCS — not just the
+familiar radio hits everyone already knows. A great recommendation surprises the dancer.
+At most 1 of your 5 songs should be a well-known mainstream hit; the rest should be
+discoveries. Think: what would a knowledgeable WCS DJ play that would make dancers ask
+"what IS this song??"
+
 ACCURACY RULES — follow these strictly before including any song:
 
 1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist." If any doubt exists, pick a different song.
 
-2. PREFER WELL-KNOWN TRACKS: Stick to an artist's charted singles, album hits, or songs widely documented in music press. Avoid deep cuts or B-sides unless you are completely certain they exist.
+2. DEPTH IS WELCOME: Album cuts, B-sides, EP tracks, and deep catalog songs are encouraged — as long as you are certain they exist. You are not limited to charted singles.
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. "Come and Get It" is Selena Gomez, not Aaliyah. "Greedy" is Tate McRae, not Tame Impala. Always verify the pairing, not just the artist and not just the title.
 
@@ -156,11 +164,13 @@ You understand WCS dance dynamics completely:
 - How emotional tone shapes the partnership and the crowd
 - How to sequence songs so each one serves the arc and flows into the next
 
+DISCOVERY MISSION: The best WCS DJs build sets that introduce dancers to music they've never heard. Lean into hidden gems, deep cuts, emerging artists, and lesser-known tracks that dance beautifully for WCS. A set that blends one or two familiar anchors with 5-6 surprising discoveries is far more valuable than a playlist of radio hits. Think about what makes a dancer stop mid-dance and say "who is this artist?"
+
 ACCURACY RULES — follow these strictly before including any song:
 
 1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist." If any doubt exists, pick a different song.
 
-2. PREFER WELL-KNOWN TRACKS: Stick to charted singles and album hits. Avoid deep cuts unless you are completely certain they exist.
+2. DEPTH IS WELCOME: Album cuts, EP tracks, and catalog deep cuts are encouraged as long as you are certain they exist. You are not limited to charted singles.
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. Always verify the pairing — not just the artist and not just the title.
 
@@ -174,11 +184,13 @@ SIMILAR_SYSTEM_PROMPT = """You are a world-class West Coast Swing dance music cu
 You have encyclopedic knowledge of WCS music and can identify songs with similar dance qualities.
 Given a song, you recommend 5 real songs with similar WCS dance characteristics.
 
+DISCOVERY MISSION: Use "similar songs" as an opportunity to introduce dancers to music they likely don't know yet. If the seed song is a well-known hit, go deeper — find the lesser-known tracks, indie artists, and hidden gems that share the same dance DNA. The goal is to open up the dancer's world, not just confirm what they already know. Avoid recommending other obvious mainstream hits unless they are genuinely the best match.
+
 ACCURACY RULES — follow these strictly before including any song:
 
 1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist." If any doubt exists, pick a different song.
 
-2. PREFER WELL-KNOWN TRACKS: Stick to charted singles and widely documented album hits. Avoid deep cuts unless you are completely certain they exist.
+2. DEPTH IS WELCOME: Album cuts, EP tracks, and catalog deep cuts are encouraged as long as you are certain they exist. You are not limited to charted singles.
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. Always verify the pairing — not just the artist and not just the title.
 
@@ -210,15 +222,30 @@ def build_user_prompt(req: DescriptorRequest) -> str:
     tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
     genre_line = ", ".join(req.genre) if req.genre else "All genres"
 
-    prompt = f"""A West Coast Swing dancer is looking for songs with these characteristics:
+    prompt = f"""A West Coast Swing dancer is looking for songs. The following descriptors are STRICT REQUIREMENTS — every recommended song must genuinely match them. Do not include a song unless you can confirm it fits each criterion from your musical knowledge.
+
+REQUIRED CHARACTERISTICS:
 
 TEMPO FEEL: {req.tempo_feel}
+→ Only include songs that actually feel {req.tempo_feel.lower()} to dance. Reject songs that contradict this feel.
+
 PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
+→ This is a hard filter. A song with clean textbook 8-counts must NOT be recommended when deceptive phrasing is requested, and vice versa.
+
 BREAK BEHAVIOR: {breaks}
+→ Only include songs that actually exhibit these break types. If the dancer wants fake breaks, the song must have them. If they want no obvious breaks, the song must sustain its groove throughout.
+
 ACCENT SHARPNESS: {req.accent_sharpness}/5 — {SHARPNESS_LABELS[req.accent_sharpness]}
+→ Match the sonic character. A score of 1-2 means legato, flowing production. A score of 4-5 means staccato, punchy hits. Do not recommend a sharp, percussive track when smoothness is requested.
+
 ELASTICITY POTENTIAL: {req.elasticity_potential}/5 — {ELASTICITY_LABELS[req.elasticity_potential]}
+→ This matters. Low elasticity = driving, on-the-beat pulse. High elasticity = the song breathes, rewards waiting. Match this carefully — it changes which songs are appropriate.
+
 RISK LEVEL: {req.risk_level}/5 — {RISK_LABELS[req.risk_level]}
+→ Risk comes from irregular phrasing, unexpected breaks, and layered complexity. Match it.
+
 EMOTIONAL TONE: {tones}
+
 PREFERRED GENRE: {genre_line}
 
 DIVERSITY RULES (strictly enforced):
@@ -229,6 +256,11 @@ DIVERSITY RULES (strictly enforced):
         prompt += f"\n\nADDITIONAL CONTEXT: {req.additional_context.strip()}"
 
     prompt += """
+
+DISCOVERY GOAL: At most 2 songs can be well-known mainstream hits. The remaining 3 should be
+discoveries - lesser-known tracks, emerging artists, deep album cuts, indie releases, or
+genre crossovers that most WCS dancers haven't heard yet but will love. WCS culture is built
+on finding new music; help this dancer discover something.
 
 Recommend exactly 5 real songs that match these dance descriptors. Return ONLY this JSON structure:
 
@@ -258,14 +290,28 @@ def build_djset_prompt(req: DescriptorRequest) -> str:
     tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
     genre_line = ", ".join(req.genre) if req.genre else "All genres"
 
-    return f"""Build a 7-song DJ set for West Coast Swing with this overall vibe and energy profile:
+    return f"""Build a 7-song DJ set for West Coast Swing. The following descriptors define the SET's overall character and are STRICT REQUIREMENTS — every song must genuinely fit the profile. Do not include a song unless you can confirm it matches from your musical knowledge.
+
+REQUIRED SET CHARACTER:
 
 TEMPO FEEL: {req.tempo_feel}
+→ Every song in the set must dance at this feel. The arc can modulate slightly but must stay true to this overall tempo character.
+
 PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
+→ Hard filter. Songs must actually have this phrase structure — predictable or deceptive as specified.
+
 BREAK BEHAVIOR: {breaks}
+→ Songs must exhibit these break types. Choose songs you can confirm have this behavior.
+
 ACCENT SHARPNESS: {req.accent_sharpness}/5 — {SHARPNESS_LABELS[req.accent_sharpness]}
+→ Match the sonic texture across the set. Smooth vs punchy is non-negotiable.
+
 ELASTICITY POTENTIAL: {req.elasticity_potential}/5 — {ELASTICITY_LABELS[req.elasticity_potential]}
+→ Match the groove's breathability. This determines whether songs reward patience or drive dancers forward.
+
 RISK LEVEL: {req.risk_level}/5 — {RISK_LABELS[req.risk_level]}
+→ Consistent risk profile across the set; adjust slightly per arc position if needed but stay in range.
+
 EMOTIONAL TONE: {tones}
 PREFERRED GENRE: {genre_line}
 
@@ -281,6 +327,7 @@ Build a 7-song set that follows this energy arc in order:
 DIVERSITY RULES (strictly enforced):
 - No two songs by the same artist
 - If specific genres are listed, all 7 songs must come from those genres
+- At most 3 songs can be well-known mainstream hits; fill the rest with discoveries, deep cuts, and emerging artists
 
 Return ONLY this JSON structure:
 
@@ -488,13 +535,25 @@ def build_covers_remixes_prompt(req: DescriptorRequest) -> str:
     tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
     genre_line = ", ".join(req.genre) if req.genre else "All genres"
 
-    return f"""A West Coast Swing dancer wants ONLY remixes and covers — no original recordings — that match this vibe:
+    return f"""A West Coast Swing dancer wants ONLY remixes and covers — no original recordings. The following are STRICT REQUIREMENTS — only include a remix or cover if you can confirm it genuinely matches each criterion.
+
+REQUIRED CHARACTERISTICS:
 
 TEMPO FEEL: {req.tempo_feel}
+→ Only remixes/covers that actually dance at this feel.
+
 PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
+→ The remix or cover version must exhibit this phrase structure — not just the original.
+
 BREAK BEHAVIOR: {breaks}
+→ Match the break behavior of the specific version, not assumed from the original.
+
 ACCENT SHARPNESS: {req.accent_sharpness}/5 — {SHARPNESS_LABELS[req.accent_sharpness]}
+→ Remixes often change this dramatically from the original. Match the version's actual texture.
+
 ELASTICITY POTENTIAL: {req.elasticity_potential}/5 — {ELASTICITY_LABELS[req.elasticity_potential]}
+→ Confirm the version has this groove breathability.
+
 RISK LEVEL: {req.risk_level}/5 — {RISK_LABELS[req.risk_level]}
 EMOTIONAL TONE: {tones}
 PREFERRED GENRE: {genre_line}
