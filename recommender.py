@@ -143,15 +143,17 @@ discoveries. Think: what would a knowledgeable WCS DJ play that would make dance
 
 ACCURACY RULES — follow these strictly before including any song:
 
-1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist." If any doubt exists, pick a different song.
+1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist — I could find it on Spotify or YouTube right now." If any doubt exists, pick a different song.
 
-2. DEPTH IS WELCOME: Album cuts, B-sides, EP tracks, and deep catalog songs are encouraged — as long as you are certain they exist. You are not limited to charted singles.
+2. DEPTH IS WELCOME — BUT CERTAINTY IS REQUIRED: Album cuts, B-sides, EP tracks, and deep catalog songs are encouraged. However, the bar for certainty is HIGHER for lesser-known tracks, not lower. A mainstream hit is easy to verify; an indie deep cut is where hallucinations happen. If you cannot recall at least two of the following for a lesser-known song — the album/EP it's on, the approximate release year, a specific musical detail — do not include it. Pick a different song you are fully confident about.
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. "Come and Get It" is Selena Gomez, not Aaliyah. "Greedy" is Tate McRae, not Tame Impala. Always verify the pairing, not just the artist and not just the title.
 
 4. REMIXES AND COVERS — VERIFIED ONLY: Include a remix only if you can name the specific remixer (e.g. "Kaytranada Remix" — never "Club Mix" with no name). Include a cover only if you know the specific release. If uncertain, pick a different song entirely.
 
 5. WHEN IN DOUBT, SWAP THE ARTIST: If you are unsure which song to pick for an artist, choose a completely different artist whose relevant song you are 100% certain about. A confident recommendation from a different artist is always better than a guess.
+
+6. SELF-CHECK BEFORE FINALIZING: Before writing your JSON, run through each song one more time: "Can I confirm this song is on Spotify or YouTube under this exact artist name and title?" If the answer is "probably" or "I think so" — replace it. Only "yes, definitely" passes.
 
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
@@ -168,15 +170,17 @@ DISCOVERY MISSION: The best WCS DJs build sets that introduce dancers to music t
 
 ACCURACY RULES — follow these strictly before including any song:
 
-1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist." If any doubt exists, pick a different song.
+1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist — I could find it on Spotify or YouTube right now." If any doubt exists, pick a different song.
 
-2. DEPTH IS WELCOME: Album cuts, EP tracks, and catalog deep cuts are encouraged as long as you are certain they exist. You are not limited to charted singles.
+2. DEPTH IS WELCOME — BUT CERTAINTY IS REQUIRED: Album cuts, EP tracks, and catalog deep cuts are encouraged. But the bar for certainty is HIGHER for lesser-known tracks, not lower. If you cannot recall at least two concrete facts about a lesser-known song (album/EP it's on, release year, a specific musical characteristic), do not include it — pick a song you are fully confident about instead.
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. Always verify the pairing — not just the artist and not just the title.
 
 4. REMIXES AND COVERS — VERIFIED ONLY: Include a remix only if you can name the specific remixer (e.g. "Kaytranada Remix" — never "Club Mix" with no name). Include a cover only if you know the specific release. If uncertain, pick a different song entirely.
 
 5. WHEN IN DOUBT, SWAP THE ARTIST: Choose a different artist whose relevant song you are 100% certain about rather than guess.
+
+6. SELF-CHECK BEFORE FINALIZING: Before writing your JSON, run through each song: "Can I confirm this is on Spotify or YouTube under this exact artist and title?" Only "yes, definitely" passes. Replace anything that is "probably" or "I think so."
 
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
@@ -188,15 +192,17 @@ DISCOVERY MISSION: Use "similar songs" as an opportunity to introduce dancers to
 
 ACCURACY RULES — follow these strictly before including any song:
 
-1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist." If any doubt exists, pick a different song.
+1. VERIFY BEFORE YOU WRITE: For each song, silently confirm: "I am certain this exact title was released by this exact artist — I could find it on Spotify or YouTube right now." If any doubt exists, pick a different song.
 
-2. DEPTH IS WELCOME: Album cuts, EP tracks, and catalog deep cuts are encouraged as long as you are certain they exist. You are not limited to charted singles.
+2. DEPTH IS WELCOME — BUT CERTAINTY IS REQUIRED: Album cuts, EP tracks, and catalog deep cuts are encouraged. But the bar for certainty is HIGHER for lesser-known tracks, not lower. If you cannot recall at least two concrete facts about a lesser-known song (album/EP it's on, release year, a specific musical characteristic), do not include it — pick a song you are fully confident about instead.
 
 3. NEVER MIX UP SONG TITLES ACROSS ARTISTS: A title that fits an artist's style is not proof they recorded it. Always verify the pairing — not just the artist and not just the title.
 
 4. REMIXES AND COVERS — VERIFIED ONLY: Include a remix only if you can name the specific remixer (e.g. "Kaytranada Remix" — never "Club Mix" with no name). Include a cover only if you know the specific release. If uncertain, pick a different song entirely.
 
 5. WHEN IN DOUBT, SWAP THE ARTIST: Choose a different artist whose relevant song you are 100% certain about rather than guess.
+
+6. SELF-CHECK BEFORE FINALIZING: Before writing your JSON, run through each song: "Can I confirm this is on Spotify or YouTube under this exact artist and title?" Only "yes, definitely" passes. Replace anything that is "probably" or "I think so."
 
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
@@ -526,6 +532,10 @@ ACCURACY RULES — strict, not suggestions:
 2. REMIXES — NAME THE REMIXER: Every remix must have a specific named producer (e.g. "Kaytranada Remix", "Dave Audé Remix"). "Club Mix" or "Extended Mix" with no named remixer is a hallucination — do not include it.
 
 3. WHEN IN DOUBT, PICK A DIFFERENT SONG: Do not guess or substitute. Choose a completely different, well-documented remix or cover you are certain exists.
+
+4. CERTAINTY TEST — APPLIES TO EVERY ENTRY: Before including any remix or cover, confirm: "I could find this specific version on Spotify or YouTube right now, under this exact artist name and title." If the answer is anything less than "yes, definitely" — replace it. Remixes and covers are especially prone to hallucination; apply extra scrutiny.
+
+5. SELF-CHECK BEFORE FINALIZING: Run through your full list one final time. For each entry ask: "Do I know the remixer's name with certainty? Do I know the covering artist released this specific track?" Replace any entry where the answer is uncertain.
 
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
