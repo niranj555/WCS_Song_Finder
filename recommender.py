@@ -155,6 +155,10 @@ ACCURACY RULES — follow these strictly before including any song:
 
 6. SELF-CHECK BEFORE FINALIZING: Before writing your JSON, run through each song one more time: "Can I confirm this song is on Spotify or YouTube under this exact artist name and title?" If the answer is "probably" or "I think so" — replace it. Only "yes, definitely" passes.
 
+7. ALBUM COMMITMENT: You must provide the exact album or EP this song appears on (with release year). For singles not on an album, provide the single title and release year (e.g. "Single: 'Bad Guy' (2019)") — a vague "Single (year)" with no title is not acceptable. If you cannot name the release specifically, replace the song.
+
+8. FEATURED ARTISTS — VERIFY THE COLLABORATION ACTUALLY EXISTS: Knowing that Artist A and Artist B are both real does NOT mean they collaborated on any specific song. "Nao ft. GoldLink" sounds plausible but may be entirely invented. For any song with a featured artist, you must be certain that specific collaboration was released — not just that both artists exist in the same genre. If you cannot confirm the feature with confidence, use a different song by the main artist that you are certain about, or pick a completely different artist.
+
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
 DJ_SYSTEM_PROMPT = """You are a world-class West Coast Swing DJ with encyclopedic knowledge of WCS music.
@@ -182,6 +186,10 @@ ACCURACY RULES — follow these strictly before including any song:
 
 6. SELF-CHECK BEFORE FINALIZING: Before writing your JSON, run through each song: "Can I confirm this is on Spotify or YouTube under this exact artist and title?" Only "yes, definitely" passes. Replace anything that is "probably" or "I think so."
 
+7. ALBUM COMMITMENT: You must provide the exact album or EP this song appears on (with release year). For singles not on an album, provide the single title and release year (e.g. "Single: 'Bad Guy' (2019)") — a vague "Single (year)" with no title is not acceptable. If you cannot name the release specifically, replace the song.
+
+8. FEATURED ARTISTS — VERIFY THE COLLABORATION ACTUALLY EXISTS: Knowing that Artist A and Artist B are both real does NOT mean they collaborated on any specific song. "Nao ft. GoldLink" sounds plausible but may be entirely invented. For any song with a featured artist, you must be certain that specific collaboration was released — not just that both artists exist in the same genre. If you cannot confirm the feature with confidence, use a different song by the main artist that you are certain about, or pick a completely different artist.
+
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
 SIMILAR_SYSTEM_PROMPT = """You are a world-class West Coast Swing dance music curator.
@@ -203,6 +211,10 @@ ACCURACY RULES — follow these strictly before including any song:
 5. WHEN IN DOUBT, SWAP THE ARTIST: Choose a different artist whose relevant song you are 100% certain about rather than guess.
 
 6. SELF-CHECK BEFORE FINALIZING: Before writing your JSON, run through each song: "Can I confirm this is on Spotify or YouTube under this exact artist and title?" Only "yes, definitely" passes. Replace anything that is "probably" or "I think so."
+
+7. ALBUM COMMITMENT: You must provide the exact album or EP this song appears on (with release year). For singles not on an album, provide the single title and release year (e.g. "Single: 'Bad Guy' (2019)") — a vague "Single (year)" with no title is not acceptable. If you cannot name the release specifically, replace the song.
+
+8. FEATURED ARTISTS — VERIFY THE COLLABORATION ACTUALLY EXISTS: Knowing that Artist A and Artist B are both real does NOT mean they collaborated on any specific song. "Nao ft. GoldLink" sounds plausible but may be entirely invented. For any song with a featured artist, you must be certain that specific collaboration was released — not just that both artists exist in the same genre. If you cannot confirm the feature with confidence, use a different song by the main artist that you are certain about, or pick a completely different artist.
 
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
@@ -268,6 +280,12 @@ discoveries - lesser-known tracks, emerging artists, deep album cuts, indie rele
 genre crossovers that most WCS dancers haven't heard yet but will love. WCS culture is built
 on finding new music; help this dancer discover something.
 
+HOW TO SELECT SONGS — anchor, then filter:
+First, mentally recall 10-15 real songs you are certain exist and would fit this dancer's world.
+Then filter that list down to the 5 that best match the descriptors above.
+Do NOT start from the descriptors and invent songs that would fit — that is how hallucinations happen.
+Start from songs you know are real, then ask "does this match?"
+
 Recommend exactly 5 real songs that match these dance descriptors. Return ONLY this JSON structure:
 
 {
@@ -275,6 +293,7 @@ Recommend exactly 5 real songs that match these dance descriptors. Return ONLY t
     {
       "title": "Exact song title",
       "artist": "Exact artist name",
+      "album": "Album or EP name (Year) — e.g. 'Stone Rollin' (2011)'. Required. If you cannot name it, replace this song.",
       "why_it_fits": "2-3 sentences explaining why this song matches the requested descriptors, using WCS dance language. Reference specific musical moments.",
       "dance_notes": "1-2 sentences with a specific musicality tip for dancing WCS to this song — what to listen for, what to do.",
       "suggested_patterns": ["pattern or move 1", "pattern or move 2", "pattern or move 3"],
@@ -335,6 +354,10 @@ DIVERSITY RULES (strictly enforced):
 - If specific genres are listed, all 7 songs must come from those genres
 - At most 3 songs can be well-known mainstream hits; fill the rest with discoveries, deep cuts, and emerging artists
 
+HOW TO SELECT SONGS — anchor, then filter:
+First, mentally recall 15-20 real songs you are certain exist and would fit this set's world.
+Then select the 7 that best serve the arc. Do NOT invent songs from the descriptors — start from songs you know are real.
+
 Return ONLY this JSON structure:
 
 {{
@@ -342,6 +365,7 @@ Return ONLY this JSON structure:
     {{
       "title": "Exact song title",
       "artist": "Exact artist name",
+      "album": "Album or EP name (Year) — e.g. 'Stone Rollin' (2011)'. Required. If you cannot name it, replace this song.",
       "energy_label": "Opener",
       "why_it_fits": "2-3 sentences explaining why this song works at this arc position in WCS dance terms.",
       "dance_notes": "1-2 sentences with a specific WCS musicality tip for this song.",
@@ -537,6 +561,8 @@ ACCURACY RULES — strict, not suggestions:
 
 5. SELF-CHECK BEFORE FINALIZING: Run through your full list one final time. For each entry ask: "Do I know the remixer's name with certainty? Do I know the covering artist released this specific track?" Replace any entry where the answer is uncertain.
 
+6. ALBUM COMMITMENT: You must provide the exact album, EP, or single release this version appears on (with release year). If you cannot name it with confidence, replace the entry — a hallucinated remix or cover almost never comes paired with a real release name.
+
 Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
 
 
@@ -574,6 +600,10 @@ Recommend exactly 5 remixes or covers. Every single entry must be either:
 
 No original recordings. Mix remixes and covers freely.
 
+HOW TO SELECT — anchor, then filter:
+First, mentally recall 10-15 real remixes and covers you are certain exist.
+Then filter to the 5 that best match the descriptors. Do NOT invent versions that would fit — start from what you know is real.
+
 Return ONLY this JSON structure:
 
 {{
@@ -584,6 +614,7 @@ Return ONLY this JSON structure:
       "type": "remix or cover",
       "original_title": "Original song title",
       "original_artist": "Original song artist",
+      "album": "The album, EP, or single release this specific version appears on (Year). Required. If you cannot name it, replace this entry.",
       "why_it_fits": "2-3 sentences explaining why this remix or cover works for WCS dancing at this vibe, and how it differs from the original.",
       "dance_notes": "1-2 sentences with a specific WCS musicality tip for this version.",
       "suggested_patterns": ["pattern 1", "pattern 2", "pattern 3"],
@@ -676,6 +707,7 @@ Return ONLY this JSON structure:
     {{
       "title": "Exact song title",
       "artist": "Exact artist name",
+      "album": "Album or EP name (Year) — e.g. 'Stone Rollin' (2011)'. Required. If you cannot name it, replace this song.",
       "why_it_fits": "2-3 sentences explaining why this song is similar in WCS dance terms.",
       "dance_notes": "1-2 sentences with a specific musicality tip for dancing WCS to this song.",
       "suggested_patterns": ["pattern or move 1", "pattern or move 2", "pattern or move 3"],

@@ -27,6 +27,112 @@ const LS_ACTIVE_PL = "wcs_active_pl";  // active playlist id
 const SONG_REGISTRY = new Map();
 let _cardSeq = 0;
 
+function triggerVizState(s) {
+  if (typeof window.setVizState === 'function') window.setVizState(s);
+}
+
+// ── GSAP batch card animation ─────────────────────────────────
+function animateBatchCards(panel) {
+  if (typeof gsap === 'undefined') return;
+  const cards = panel.querySelectorAll('.song-card');
+  gsap.from(cards, { y: 28, opacity: 0, duration: 0.55, ease: "back.out(1.4)", stagger: 0.07 });
+}
+
+// ── Tone.js audio preview ─────────────────────────────────────
+let _activePlayer = null;
+let _activeBtn = null;
+let _progressInterval = null;
+
+async function previewSong(btn, listenQuery) {
+  // If clicking the active button → stop it and return
+  if (_activeBtn === btn) {
+    stopPreview();
+    return;
+  }
+
+  // Stop any other playing preview first
+  stopPreview();
+
+  btn.textContent = '⏳ Loading…';
+  btn.disabled = true;
+
+  try {
+    // Fetch iTunes 30s preview URL
+    const query = encodeURIComponent(listenQuery);
+    const res = await fetch(`https://itunes.apple.com/search?term=${query}&media=music&entity=song&limit=1`);
+    const data = await res.json();
+    const result = data.results && data.results[0];
+    const previewUrl = result && result.previewUrl;
+
+    if (!previewUrl) {
+      showToast('No preview available for this song.');
+      btn.textContent = '♪ Preview';
+      btn.disabled = false;
+      return;
+    }
+
+    await Tone.start();
+
+    const analyser = new Tone.Analyser('fft', 32);
+    const player = new Tone.Player({
+      url: previewUrl,
+      autostart: true,
+      onload: () => {
+        btn.textContent = '⏹ Stop';
+        btn.classList.add('playing');
+        btn.disabled = false;
+        _activeBtn = btn;
+        _activePlayer = player;
+
+        // Show + animate progress bar
+        const progressWrap = btn.closest('.listen-row').querySelector('.preview-progress');
+        const progressBar = progressWrap && progressWrap.querySelector('.preview-progress-bar');
+        if (progressWrap) {
+          progressWrap.style.display = 'block';
+          const duration = player.buffer.duration;
+          _progressInterval = setInterval(() => {
+            const elapsed = Tone.Transport.seconds % duration || 0;
+            if (progressBar) progressBar.style.width = `${(elapsed / duration) * 100}%`;
+          }, 250);
+        }
+      },
+      onstop: () => { if (_activePlayer) stopPreview(); },
+    }).connect(analyser);
+
+    analyser.toDestination();
+
+    if (typeof window.setToneAnalyser === 'function') window.setToneAnalyser(analyser);
+
+  } catch (err) {
+    showToast('Preview failed: ' + err.message);
+    btn.textContent = '♪ Preview';
+    btn.disabled = false;
+  }
+}
+
+function stopPreview() {
+  if (_activePlayer) {
+    try { _activePlayer.stop(); _activePlayer.dispose(); } catch {}
+    _activePlayer = null;
+  }
+  if (_activeBtn) {
+    _activeBtn.textContent = '♪ Preview';
+    _activeBtn.classList.remove('playing');
+    _activeBtn = null;
+  }
+  if (_progressInterval) {
+    clearInterval(_progressInterval);
+    _progressInterval = null;
+  }
+  // Reset progress bars
+  document.querySelectorAll('.preview-progress').forEach(el => {
+    el.style.display = 'none';
+    const bar = el.querySelector('.preview-progress-bar');
+    if (bar) bar.style.width = '0%';
+  });
+  if (typeof window.setToneAnalyser === 'function') window.setToneAnalyser(null);
+}
+
 const ENERGY_COLORS = {
   "Opener":      "#00d4ff",
   "Early Build": "#33ffaa",
@@ -331,6 +437,14 @@ function initEventDelegation() {
       return;
     }
 
+    // Preview button
+    const previewBtn = e.target.closest(".preview-btn");
+    if (previewBtn) {
+      e.stopPropagation();
+      previewSong(previewBtn, previewBtn.dataset.query);
+      return;
+    }
+
     // Find similar button
     const similarBtn = e.target.closest(".find-similar-btn");
     if (similarBtn) {
@@ -373,6 +487,7 @@ async function handleFind() {
   findBtn.disabled = true;
   findBtn.textContent = "READING THE GROOVE…";
   findBtn.classList.add("loading");
+  triggerVizState('loading');
   switchTab("results");
   showSkeleton(5);
 
@@ -451,6 +566,10 @@ async function handleFind() {
           // Regular song
           allSongs.push(parsed);
           gridEl.insertAdjacentHTML("beforeend", renderCard(parsed, songsRendered++));
+          const newCard = gridEl.lastElementChild;
+          if (typeof gsap !== 'undefined') {
+            gsap.from(newCard, { y: 28, opacity: 0, duration: 0.55, ease: "back.out(1.4)" });
+          }
         }
       }
     }
@@ -466,6 +585,7 @@ async function handleFind() {
     findBtn.disabled = false;
     findBtn.textContent = "FIND MY SONGS";
     findBtn.classList.remove("loading");
+    triggerVizState('done');
   }
 }
 
@@ -484,6 +604,7 @@ async function handleDJSet() {
   djBtn.disabled = true;
   djBtn.textContent = "BUILDING YOUR SET…";
   djBtn.classList.add("loading");
+  triggerVizState('loading');
   switchTab("results");
   showSkeleton(7);
 
@@ -520,6 +641,7 @@ async function handleDJSet() {
     djBtn.disabled = false;
     djBtn.textContent = "BUILD DJ SET";
     djBtn.classList.remove("loading");
+    triggerVizState('done');
   }
 }
 
@@ -538,6 +660,7 @@ async function handleCovers() {
   btn.disabled = true;
   btn.textContent = "SEARCHING…";
   btn.classList.add("loading");
+  triggerVizState('loading');
   switchTab("results");
   showSkeleton(5);
 
@@ -574,6 +697,7 @@ async function handleCovers() {
     btn.disabled = false;
     btn.textContent = "COVERS & REMIXES";
     btn.classList.remove("loading");
+    triggerVizState('done');
   }
 }
 
@@ -587,6 +711,7 @@ function renderCoversRemixes(data) {
     <div class="covers-banner">COVERS &amp; REMIXES</div>
     ${noteHtml}
     <div class="songs-grid">${cardsHtml}</div>`;
+  animateBatchCards(resultsPanel());
 }
 
 function renderCoverCard(song, index) {
@@ -673,6 +798,7 @@ function renderResults(data) {
     ${similarBanner}
     ${noteHtml}
     <div class="songs-grid">${cardsHtml}</div>`;
+  animateBatchCards(resultsPanel());
 }
 
 function renderDJSet(data) {
@@ -685,6 +811,7 @@ function renderDJSet(data) {
     <div class="djset-banner">DJ SET — Energy Arc (${set.length} songs)</div>
     ${noteHtml}
     <div class="songs-grid">${cardsHtml}</div>`;
+  animateBatchCards(resultsPanel());
 }
 
 function renderDJCard(song, index) {
@@ -699,6 +826,7 @@ function renderCard(song, index) {
   const {
     title = "Unknown",
     artist = "",
+    album = "",
     why_it_fits = "",
     dance_notes = "",
     suggested_patterns = [],
@@ -738,6 +866,7 @@ function renderCard(song, index) {
           <div class="song-number">Track ${String(index + 1).padStart(2, "0")}</div>
           <div class="song-title">${escHtml(title)}</div>
           <div class="song-artist">${escHtml(artist)}</div>
+          ${album ? `<div class="song-album">${escHtml(album)}</div>` : ""}
         </div>
         <div class="song-header-actions">
           <button class="add-playlist-btn" title="Add to playlist">+</button>
@@ -769,7 +898,9 @@ function renderCard(song, index) {
             YouTube
           </a>
           <button class="find-similar-btn">Find Similar</button>
+          <button class="preview-btn" data-query="${escHtml(listen_query)}">♪ Preview</button>
         </div>
+        <div class="preview-progress"><div class="preview-progress-bar"></div></div>
       </div>
     </div>`;
 }
