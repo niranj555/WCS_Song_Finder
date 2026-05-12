@@ -1,7 +1,10 @@
+import asyncio
 import json
 import logging
+import threading
 import time
 import traceback
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form
 from pydantic import BaseModel
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -12,6 +15,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
 from recommender import DescriptorRequest, stream_recommendations, get_similar_songs, get_djset, get_covers_remixes
+from sources import refresh_all_sources, wcs_songs_count
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +24,24 @@ logging.basicConfig(
 )
 log = logging.getLogger("wcs")
 
-app = FastAPI(title="WCS Dance Music Recommender")
+
+def _auto_seed():
+    try:
+        if wcs_songs_count() == 0:
+            log.info("wcs_songs table empty — seeding from proswingdjs.com...")
+            result = refresh_all_sources()
+            log.info("Seeding complete: added=%d total=%d", result["added"], result["total"])
+    except Exception:
+        log.error("Auto-seed failed:\n%s", traceback.format_exc())
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    threading.Thread(target=_auto_seed, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="WCS Dance Music Recommender", lifespan=lifespan)
 
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 app.add_middleware(
@@ -164,6 +185,19 @@ async def covers(request: Request, req: DescriptorRequest):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@app.post("/refresh-sources")
+async def refresh_sources_endpoint(request: Request):
+    if not request.session.get("user"):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    log.info("Manual source refresh triggered by %s", request.session.get("user"))
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(None, refresh_all_sources)
+        return JSONResponse(content=result)
+    except Exception as e:
+        log.error("Refresh sources failed:\n%s", traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "wcs_songs": wcs_songs_count()}

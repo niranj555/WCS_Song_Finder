@@ -7,3 +7,5 @@ itsdangerous
 python-dotenv
 pydantic-settings
 pytest
+beautifulsoup4
+httpx

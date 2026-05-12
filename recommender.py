@@ -32,8 +32,48 @@ def _get_conn() -> sqlite3.Connection:
             created_at INTEGER NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS wcs_songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            artist TEXT NOT NULL,
+            source TEXT NOT NULL,
+            fetched_at INTEGER NOT NULL,
+            UNIQUE(title, artist) ON CONFLICT IGNORE
+        )
+    """)
     conn.commit()
     return conn
+
+
+def get_community_songs(limit: int = 150) -> list[str]:
+    try:
+        conn = _get_conn()
+        try:
+            # Broad mix: recent community picks + varied sources for genre coverage
+            recent = conn.execute(
+                "SELECT title, artist FROM wcs_songs WHERE source = 'psdj_posts' ORDER BY RANDOM() LIMIT 100"
+            ).fetchall()
+            varied = conn.execute(
+                "SELECT title, artist FROM wcs_songs WHERE source != 'psdj_posts' ORDER BY RANDOM() LIMIT 50"
+            ).fetchall()
+            seen: set[tuple] = set()
+            result = []
+            for title, artist in recent + varied:
+                key = (title.lower(), artist.lower())
+                if key not in seen:
+                    seen.add(key)
+                    result.append(f'"{title}" by {artist}')
+                    if len(result) >= limit:
+                        break
+            log.debug("Loaded %d community songs", len(result))
+            return result
+        except sqlite3.OperationalError:
+            return []
+        finally:
+            conn.close()
+    except Exception:
+        return []
 
 
 def _cache_get(table: str, key: str) -> dict | None:
@@ -235,7 +275,7 @@ class DescriptorRequest(BaseModel):
 
 # ── Prompt builders ───────────────────────────────────────────
 
-def build_user_prompt(req: DescriptorRequest) -> str:
+def build_user_prompt(req: DescriptorRequest, community_songs: list[str] | None = None) -> str:
     breaks = ", ".join(req.break_behavior) if req.break_behavior else "not specified"
     tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
     genre_line = ", ".join(req.genre) if req.genre else "All genres"
@@ -268,23 +308,39 @@ PREFERRED GENRE: {genre_line}
 
 DIVERSITY RULES (strictly enforced):
 - No two songs by the same artist
-- If specific genres are listed, all 5 songs must come from those genres"""
+- If specific genres are listed, all 5 songs MUST come from those genres — verify each song's actual genre from your knowledge before including it. Do not infer genre from artist name alone; confirm the specific song belongs to the genre."""
 
     if req.additional_context.strip():
         prompt += f"\n\nADDITIONAL CONTEXT: {req.additional_context.strip()}"
 
+    if community_songs:
+        songs_block = "\n".join(f"- {s}" for s in community_songs)
+        prompt += f"""
+
+COMMUNITY SONG POOL — YOU MUST SELECT FROM THIS LIST:
+The following songs are actively played at WCS events and competitions. They are real and
+community-verified. You MUST choose your 5 recommendations from this list.
+
+For each recommendation, scan this list for songs that match the descriptors above.
+Only go outside this list if you cannot find enough matching songs within it — and even
+then, only include songs you are 100% certain exist.
+
+{songs_block}
+
+HOW TO SELECT:
+1. Read the descriptors (tempo, genre, tone, predictability, sharpness, elasticity, risk).
+2. Scan the list above and identify songs that GENUINELY match ALL descriptors — especially genre.
+   For each candidate song, confirm from your knowledge: "Does this specific song actually belong
+   to the requested genre?" Do not guess based on artist name. Discard any song you are not
+   certain fits the genre.
+3. Pick the best 5 from what remains, ensuring no two songs are by the same artist.
+4. If fewer than 5 songs from the list genuinely fit the genre, supplement with other verified
+   songs you are certain about — but never include a song in the wrong genre."""
+
     prompt += """
 
-DISCOVERY GOAL: At most 2 songs can be well-known mainstream hits. The remaining 3 should be
-discoveries - lesser-known tracks, emerging artists, deep album cuts, indie releases, or
-genre crossovers that most WCS dancers haven't heard yet but will love. WCS culture is built
-on finding new music; help this dancer discover something.
-
-HOW TO SELECT SONGS — anchor, then filter:
-First, mentally recall 10-15 real songs you are certain exist and would fit this dancer's world.
-Then filter that list down to the 5 that best match the descriptors above.
-Do NOT start from the descriptors and invent songs that would fit — that is how hallucinations happen.
-Start from songs you know are real, then ask "does this match?"
+DISCOVERY GOAL: At most 2 songs can be well-known mainstream hits. Prefer lesser-known
+tracks and emerging artists from the list above — the WCS community loves discovering music.
 
 Recommend exactly 5 real songs that match these dance descriptors. Return ONLY this JSON structure:
 
@@ -310,12 +366,12 @@ Include remixes and covers when they fit — named remixer required for remixes,
     return prompt
 
 
-def build_djset_prompt(req: DescriptorRequest) -> str:
+def build_djset_prompt(req: DescriptorRequest, community_songs: list[str] | None = None) -> str:
     breaks = ", ".join(req.break_behavior) if req.break_behavior else "not specified"
     tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
     genre_line = ", ".join(req.genre) if req.genre else "All genres"
 
-    return f"""Build a 7-song DJ set for West Coast Swing. The following descriptors define the SET's overall character and are STRICT REQUIREMENTS — every song must genuinely fit the profile. Do not include a song unless you can confirm it matches from your musical knowledge.
+    prompt = f"""Build a 7-song DJ set for West Coast Swing. The following descriptors define the SET's overall character and are STRICT REQUIREMENTS — every song must genuinely fit the profile. Do not include a song unless you can confirm it matches from your musical knowledge.
 
 REQUIRED SET CHARACTER:
 
@@ -351,18 +407,40 @@ Build a 7-song set that follows this energy arc in order:
 
 DIVERSITY RULES (strictly enforced):
 - No two songs by the same artist
-- If specific genres are listed, all 7 songs must come from those genres
+- If specific genres are listed, all 7 songs MUST come from those genres — verify each song's actual genre from your knowledge before including it. Do not infer genre from artist name alone.
 - At most 3 songs can be well-known mainstream hits; fill the rest with discoveries, deep cuts, and emerging artists
+"""
 
-HOW TO SELECT SONGS — anchor, then filter:
-First, mentally recall 15-20 real songs you are certain exist and would fit this set's world.
-Then select the 7 that best serve the arc. Do NOT invent songs from the descriptors — start from songs you know are real.
+    if community_songs:
+        songs_block = "\n".join(f"- {s}" for s in community_songs)
+        prompt += f"""
+COMMUNITY SONG POOL — YOU MUST SELECT FROM THIS LIST:
+The following songs are actively played at WCS events and competitions. They are real and
+community-verified. You MUST choose your 7 songs from this list.
+
+For each arc position, scan this list for songs that fit both the arc role and the descriptors.
+Only go outside this list if you cannot find enough matching songs within it.
+
+{songs_block}
+
+HOW TO SELECT:
+1. Read the descriptors, genre, and the 7-position arc.
+2. Scan the list above — for each candidate, confirm from your knowledge that it genuinely
+   belongs to the requested genre. Discard any song you are not certain fits the genre.
+3. From the verified candidates, identify 12-15 that fit the set's character and arc.
+4. Assign the best candidates to each arc position, ensuring no two songs are by the same artist.
+4. Only supplement with songs outside the list if the arc position cannot be filled from within it."""
+
+    prompt += """
+DISCOVERY GOAL: At most 2 songs can be well-known mainstream hits. Use the list above to
+find lesser-known tracks that surprise dancers — the best WCS sets blend familiar anchors
+with discoveries.
 
 Return ONLY this JSON structure:
 
-{{
+{
   "set": [
-    {{
+    {
       "title": "Exact song title",
       "artist": "Exact artist name",
       "album": "Album or EP name (Year) — e.g. 'Stone Rollin' (2011)'. Required. If you cannot name it, replace this song.",
@@ -371,13 +449,15 @@ Return ONLY this JSON structure:
       "dance_notes": "1-2 sentences with a specific WCS musicality tip for this song.",
       "suggested_patterns": ["pattern 1", "pattern 2", "pattern 3"],
       "listen_query": "Artist Name - Song Title"
-    }}
+    }
   ],
   "curator_note": "1-2 sentences about what makes this set work as a cohesive arc for WCS dancing."
-}}
+}
 
 All 7 songs must be real. The arc should feel intentional and flow naturally from song to song.
 Include remixes and covers when they serve the arc — named remixer required for remixes, known release required for covers. When in doubt, choose a different song."""
+
+    return prompt
 
 
 # ── Streaming recommendations ─────────────────────────────────
@@ -393,8 +473,9 @@ async def stream_recommendations(req: DescriptorRequest) -> AsyncGenerator[dict,
         yield {"type": "done", "curator_note": cached.get("curator_note", "")}
         return
 
-    prompt = build_user_prompt(req)
-    log.info("Calling Claude claude-sonnet-4-6 (SSE streaming)…")
+    community = get_community_songs()
+    prompt = build_user_prompt(req, community_songs=community)
+    log.info("Calling Claude claude-sonnet-4-6 (SSE streaming, community_songs=%d)…", len(community))
 
     full_text = ""
     in_string = False
@@ -487,8 +568,9 @@ def get_djset(req: DescriptorRequest) -> dict:
         log.info("DJ set cache hit")
         return cached
 
-    prompt = build_djset_prompt(req)
-    log.info("Calling Claude for DJ set…")
+    community = get_community_songs()
+    prompt = build_djset_prompt(req, community_songs=community)
+    log.info("Calling Claude for DJ set (community_songs=%d)…", len(community))
     try:
         response = client.messages.create(
             model="claude-sonnet-4-6",
