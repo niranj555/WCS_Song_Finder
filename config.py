@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_password: str
     session_secret: str
     db_path: str = "wcs_cache.db"
+    test_username: str = ""
+    test_password: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

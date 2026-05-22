@@ -75,7 +75,13 @@ async def login_page(request: Request):
 
 @app.post("/", response_class=HTMLResponse)
 async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
-    if username == settings.app_username and password == settings.app_password:
+    primary_ok = username == settings.app_username and password == settings.app_password
+    test_ok = (
+        bool(settings.test_username and settings.test_password)
+        and username == settings.test_username
+        and password == settings.test_password
+    )
+    if primary_ok or test_ok:
         request.session["user"] = username
         return RedirectResponse("/app", status_code=302)
     return templates.TemplateResponse(request=request, name="login.html", context={"error": "Invalid username or password."})
