@@ -16,6 +16,7 @@ const DEFAULTS = {
   elasticity: 3,
   riskLevel: 2,
   tones: ["Playful"],
+  bpmRange: "",
 };
 
 const MAX_HISTORY = 15;
@@ -153,6 +154,7 @@ const state = {
   riskLevel: DEFAULTS.riskLevel,
   emotionalTone: [...DEFAULTS.tones],
   genre: [],  // empty = All
+  bpmRange: DEFAULTS.bpmRange,
   activePreset: null,
 };
 
@@ -214,8 +216,15 @@ function initPresets() {
 
 function resetToDefaults() {
   state.tempoFeel = DEFAULTS.tempo;
+  state.bpmRange = DEFAULTS.bpmRange;
+  const bpmGroup = document.getElementById("bpm-range-group");
   document.querySelectorAll(".radio-btn").forEach((b) => {
-    b.classList.toggle("selected", b.dataset.value === DEFAULTS.tempo);
+    const inBpm = bpmGroup && bpmGroup.contains(b);
+    if (inBpm) {
+      b.classList.toggle("selected", b.dataset.value === DEFAULTS.bpmRange);
+    } else {
+      b.classList.toggle("selected", b.dataset.value === DEFAULTS.tempo);
+    }
   });
   setSlider("phrase-predict", "phrase-predict-val", "phrasePredict", DEFAULTS.phrasePredict);
   setSlider("accent-sharp", "accent-sharp-val", "accentSharp", DEFAULTS.accentSharp);
@@ -251,10 +260,17 @@ function applyPreset(index, btn) {
   btn.classList.add("active");
   state.activePreset = p.name;
 
-  // Apply tempo
+  // Apply tempo; reset BPM to Any
   state.tempoFeel = p.tempo;
+  state.bpmRange = "";
+  const bpmGroup = document.getElementById("bpm-range-group");
   document.querySelectorAll(".radio-btn").forEach((b) => {
-    b.classList.toggle("selected", b.dataset.value === p.tempo);
+    const inBpm = bpmGroup && bpmGroup.contains(b);
+    if (inBpm) {
+      b.classList.toggle("selected", b.dataset.value === "");
+    } else {
+      b.classList.toggle("selected", b.dataset.value === p.tempo);
+    }
   });
 
   // Apply sliders
@@ -309,14 +325,29 @@ function switchTab(tabName) {
 
 // ── Radios ───────────────────────────────────────────────────
 function initRadios() {
+  const bpmGroup = document.getElementById("bpm-range-group");
+
   document.querySelectorAll(".radio-btn").forEach((btn) => {
+    const inBpmGroup = bpmGroup && bpmGroup.contains(btn);
+
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".radio-btn").forEach((b) => b.classList.remove("selected"));
-      btn.classList.add("selected");
-      state.tempoFeel = btn.dataset.value;
+      if (inBpmGroup) {
+        bpmGroup.querySelectorAll(".radio-btn").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        state.bpmRange = btn.dataset.value;
+      } else {
+        document.querySelectorAll(".radio-btn:not(#bpm-range-group .radio-btn)").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        state.tempoFeel = btn.dataset.value;
+      }
       markCustom();
     });
-    if (btn.dataset.value === state.tempoFeel) btn.classList.add("selected");
+
+    if (inBpmGroup) {
+      if (btn.dataset.value === state.bpmRange) btn.classList.add("selected");
+    } else {
+      if (btn.dataset.value === state.tempoFeel) btn.classList.add("selected");
+    }
   });
 }
 
@@ -500,6 +531,7 @@ async function handleFind() {
     risk_level: state.riskLevel,
     emotional_tone: state.emotionalTone,
     genre: state.genre,
+    bpm_range: state.bpmRange,
     additional_context: "",
   };
 
@@ -618,6 +650,7 @@ async function handleDJSet() {
       risk_level: state.riskLevel,
       emotional_tone: state.emotionalTone,
       genre: state.genre,
+      bpm_range: state.bpmRange,
       additional_context: "",
     };
 
@@ -674,6 +707,7 @@ async function handleCovers() {
       risk_level: state.riskLevel,
       emotional_tone: state.emotionalTone,
       genre: state.genre,
+      bpm_range: state.bpmRange,
       additional_context: "",
     };
 
@@ -832,6 +866,7 @@ function renderCard(song, index) {
     suggested_patterns = [],
     competition_history = "",
     listen_query = `${artist} ${title}`,
+    source_label = "",
   } = song;
 
   const key = `card_${_cardSeq++}`;
@@ -839,7 +874,7 @@ function renderCard(song, index) {
 
   const encoded = encodeURIComponent(listen_query);
   const spotifyUrl = `https://open.spotify.com/search/${encoded}`;
-  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(listen_query + " west coast swing")}`;
+  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(listen_query)}`;
 
   const patternsHtml = suggested_patterns.length
     ? `<div class="card-section">
@@ -863,7 +898,7 @@ function renderCard(song, index) {
     <div class="song-card" data-key="${key}" style="animation-delay: ${delay}s">
       <div class="song-card-header">
         <div class="song-header-main">
-          <div class="song-number">Track ${String(index + 1).padStart(2, "0")}</div>
+          <div class="song-number">Track ${String(index + 1).padStart(2, "0")}${source_label ? `<span class="source-badge source-badge--${source_label === "ProDJSwing" ? "community" : "discovery"}">${escHtml(source_label)}</span>` : ""}</div>
           <div class="song-title">${escHtml(title)}</div>
           <div class="song-artist">${escHtml(artist)}</div>
           ${album ? `<div class="song-album">${escHtml(album)}</div>` : ""}
@@ -1201,10 +1236,12 @@ function renderHistoryPanel() {
     const genre = (p.genre && p.genre.length > 0) ? p.genre.join(", ") : "All";
     const breaks = (p.break_behavior && p.break_behavior.length > 0) ? p.break_behavior.join(", ") : "—";
     const tones = (p.emotional_tone && p.emotional_tone.length > 0) ? p.emotional_tone.join(", ") : "—";
+    const bpm = p.bpm_range || "Any";
 
     const descriptors = `
       <div class="history-descriptors">
         <span class="hdesc-item"><span class="hdesc-key">Tempo</span> ${escHtml(p.tempo_feel)}</span>
+        <span class="hdesc-item"><span class="hdesc-key">BPM</span> ${escHtml(bpm)}</span>
         <span class="hdesc-item"><span class="hdesc-key">Genre</span> ${escHtml(genre)}</span>
         <span class="hdesc-item"><span class="hdesc-key">Tone</span> ${escHtml(tones)}</span>
         <span class="hdesc-item"><span class="hdesc-key">Breaks</span> ${escHtml(breaks)}</span>

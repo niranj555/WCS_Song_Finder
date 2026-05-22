@@ -46,6 +46,20 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
+def get_community_songs_set() -> set[tuple[str, str]]:
+    try:
+        conn = _get_conn()
+        try:
+            rows = conn.execute("SELECT title, artist FROM wcs_songs").fetchall()
+            return {(t.lower(), a.lower()) for t, a in rows}
+        except sqlite3.OperationalError:
+            return set()
+        finally:
+            conn.close()
+    except Exception:
+        return set()
+
+
 def get_community_songs(limit: int = 150) -> list[str]:
     try:
         conn = _get_conn()
@@ -115,6 +129,7 @@ def _cache_key(req: "DescriptorRequest") -> str:
         "risk_level": req.risk_level,
         "emotional_tone": sorted(req.emotional_tone),
         "genre": sorted(req.genre),
+        "bpm_range": req.bpm_range,
         "additional_context": req.additional_context.strip().lower(),
     }
     return hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest()
@@ -270,6 +285,7 @@ class DescriptorRequest(BaseModel):
     risk_level: int  # 1-5
     emotional_tone: List[str]
     genre: List[str] = []  # empty = All genres
+    bpm_range: str = ""  # e.g. "95–108 BPM (Medium)" or "" for Any
     additional_context: str = ""
 
 
@@ -286,6 +302,10 @@ REQUIRED CHARACTERISTICS:
 
 TEMPO FEEL: {req.tempo_feel}
 → Only include songs that actually feel {req.tempo_feel.lower()} to dance. Reject songs that contradict this feel.
+
+BPM RANGE: {req.bpm_range if req.bpm_range else "Any — no BPM restriction"}
+→ Only include songs that fall within this BPM range. Verify the song's tempo from your knowledge before including it.
+   If BPM is "Any", ignore this filter entirely.
 
 PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
 → This is a hard filter. A song with clean textbook 8-counts must NOT be recommended when deceptive phrasing is requested, and vice versa.
@@ -377,6 +397,10 @@ REQUIRED SET CHARACTER:
 
 TEMPO FEEL: {req.tempo_feel}
 → Every song in the set must dance at this feel. The arc can modulate slightly but must stay true to this overall tempo character.
+
+BPM RANGE: {req.bpm_range if req.bpm_range else "Any — no BPM restriction"}
+→ Only include songs that fall within this BPM range. Verify each song's tempo from your knowledge.
+   If BPM is "Any", ignore this filter entirely.
 
 PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
 → Hard filter. Songs must actually have this phrase structure — predictable or deceptive as specified.
@@ -474,6 +498,7 @@ async def stream_recommendations(req: DescriptorRequest) -> AsyncGenerator[dict,
         return
 
     community = get_community_songs()
+    community_set = get_community_songs_set()
     prompt = build_user_prompt(req, community_songs=community)
     log.info("Calling Claude claude-sonnet-4-6 (SSE streaming, community_songs=%d)…", len(community))
 
@@ -520,6 +545,8 @@ async def stream_recommendations(req: DescriptorRequest) -> AsyncGenerator[dict,
                             try:
                                 song = json.loads(obj_str)
                                 log.debug("Streamed song: %s by %s", song.get("title"), song.get("artist"))
+                                song_key = (song.get("title", "").lower(), song.get("artist", "").lower())
+                                song["source_label"] = "ProDJSwing" if song_key in community_set else "Discovery"
                                 yield {"type": "song", "song": song}
                             except json.JSONDecodeError:
                                 log.warning("Failed to parse streamed song object")
@@ -552,6 +579,9 @@ async def stream_recommendations(req: DescriptorRequest) -> AsyncGenerator[dict,
 
     try:
         result = json.loads(raw)
+        for song in result.get("recommendations", []):
+            k = (song.get("title", "").lower(), song.get("artist", "").lower())
+            song["source_label"] = "ProDJSwing" if k in community_set else "Discovery"
         _cache_set("cache", key, result)
         yield {"type": "done", "curator_note": result.get("curator_note", "")}
     except json.JSONDecodeError:
@@ -613,6 +643,10 @@ def get_djset(req: DescriptorRequest) -> dict:
 
     try:
         result = json.loads(raw_text)
+        community_set = get_community_songs_set()
+        for song in result.get("set", []):
+            k = (song.get("title", "").lower(), song.get("artist", "").lower())
+            song["source_label"] = "ProDJSwing" if k in community_set else "Discovery"
         _cache_set("cache", key, result)
         return result
     except json.JSONDecodeError:

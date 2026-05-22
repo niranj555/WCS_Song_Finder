@@ -120,6 +120,33 @@
       </div>
     </div>
 
+    <!-- 2b. BPM Range -->
+    <div class="descriptor-group">
+      <div class="descriptor-label">
+        <span class="icon">🎚️</span> BPM Range
+        <button class="info-btn" data-target="info-bpm" aria-label="What is BPM Range?">ⓘ</button>
+        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;margin-left:auto">(optional)</span>
+      </div>
+      <div class="info-panel" id="info-bpm">
+        <p>Beats per minute — the measurable speed of the music. Use this to target a specific event style or competition heat range. Leave on <strong>Any</strong> to ignore BPM.</p>
+        <ul>
+          <li><strong>Blues (55–80)</strong> — drag blues, late-night deep groove</li>
+          <li><strong>Slow (80–95)</strong> — ballads, slow soul, connection-focused</li>
+          <li><strong>Medium (95–108)</strong> — social sweet spot for most events</li>
+          <li><strong>Medium-Fast (108–120)</strong> — competition and showcase range</li>
+          <li><strong>Fast (120–135)</strong> — fast WCS, athletic, advanced</li>
+        </ul>
+      </div>
+      <div class="radio-group" id="bpm-range-group">
+        <div class="radio-btn selected" data-value="">Any</div>
+        <div class="radio-btn" data-value="55–80 BPM (Blues / Very Slow)">Blues 55–80</div>
+        <div class="radio-btn" data-value="80–95 BPM (Slow)">Slow 80–95</div>
+        <div class="radio-btn" data-value="95–108 BPM (Medium)">Medium 95–108</div>
+        <div class="radio-btn" data-value="108–120 BPM (Medium-Fast)">Medium-Fast 108–120</div>
+        <div class="radio-btn" data-value="120–135 BPM (Fast)">Fast 120–135</div>
+      </div>
+    </div>
+
     <!-- 2. Phrase Predictability -->
     <div class="descriptor-group">
       <div class="descriptor-label">
