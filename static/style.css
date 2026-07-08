@@ -1110,3 +1110,64 @@ textarea:focus { border-color: var(--accent); }
   border-color: rgba(120, 60, 200, 0.25);
 }
 
+
+/* ── What's Playing button ── */
+.btn-whats-playing {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #ffaa44;
+  background: transparent;
+  color: #ffaa44;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+  font-family: inherit;
+}
+.btn-whats-playing:hover {
+  background: rgba(255, 170, 68, 0.08);
+  box-shadow: 0 0 12px rgba(255, 170, 68, 0.2);
+}
+.btn-whats-playing:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-whats-playing.loading {
+  animation: pulse-btn 1.2s ease-in-out infinite;
+}
+
+/* ── Status text below identify button ── */
+.whats-playing-status {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  min-height: 18px;
+  margin-top: 5px;
+  text-align: center;
+  transition: color 0.2s;
+}
+.whats-playing-status[data-phase="recording"] { color: #ffaa44; }
+.whats-playing-status[data-phase="identifying"] { color: var(--cyan); }
+
+/* ── Identified song banner ── */
+.identified-song-banner {
+  background: linear-gradient(135deg, rgba(255,170,68,0.08), rgba(255,170,68,0.04));
+  border: 1px solid rgba(255, 170, 68, 0.3);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.identified-label {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffaa44;
+  margin-right: 6px;
+}
+.identified-song-banner strong { color: var(--text); }

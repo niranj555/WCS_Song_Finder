@@ -44,6 +44,13 @@ let _activePlayer = null;
 let _activeBtn = null;
 let _progressInterval = null;
 
+// ── Mic / identify state ──────────────────────────────────────
+let _micStream = null;
+let _mediaRecorder = null;
+let _recordingChunks = [];
+let _recordingCountdownTimer = null;
+const RECORD_DURATION_MS = 8000;
+
 async function previewSong(btn, listenQuery) {
   // If clicking the active button → stop it and return
   if (_activeBtn === btn) {
@@ -177,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
   findBtn.addEventListener("click", handleFind);
   document.getElementById("djset-btn").addEventListener("click", handleDJSet);
   document.getElementById("covers-btn").addEventListener("click", handleCovers);
+  document.getElementById("whats-playing-btn")?.addEventListener("click", handleWhatsPlaying);
   renderHistoryPanel();
   renderFavoritesPanel();
   renderPlaylistPanel();
@@ -758,6 +766,157 @@ function renderCoverCard(song, index) {
   return base
     .replace('<div class="song-number">', `${typeBadge}<div class="song-number">`)
     .replace('<div class="song-card-body">', `<div class="song-card-body">${originalLine}`);
+}
+
+// ── What's Playing Handler ───────────────────────────────────
+async function handleWhatsPlaying() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast("Song recognition requires HTTPS. Please use the app over a secure connection.");
+    return;
+  }
+  if (_mediaRecorder && _mediaRecorder.state === "recording") return;
+
+  const btn = document.getElementById("whats-playing-btn");
+  btn.disabled = true;
+  btn.textContent = "Requesting mic…";
+  setWhatsPlayingStatus("", "");
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "WHAT'S PLAYING?";
+    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      showToast("Microphone access denied. Please allow mic access in your browser settings.");
+    } else if (err.name === "NotFoundError") {
+      showToast("No microphone found on this device.");
+    } else {
+      showToast("Could not access microphone: " + err.message);
+    }
+    return;
+  }
+
+  _micStream = stream;
+  _recordingChunks = [];
+
+  const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+    ? "audio/webm;codecs=opus"
+    : MediaRecorder.isTypeSupported("audio/webm")
+    ? "audio/webm"
+    : MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
+    ? "audio/ogg;codecs=opus"
+    : "audio/mp4";
+
+  _mediaRecorder = new MediaRecorder(stream, { mimeType });
+  _mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) _recordingChunks.push(e.data);
+  };
+
+  let countdown = Math.round(RECORD_DURATION_MS / 1000);
+  btn.textContent = `Listening… ${countdown}s`;
+  btn.classList.add("loading");
+  setWhatsPlayingStatus("recording", `Listening for ${countdown}s…`);
+  triggerVizState("loading");
+
+  _recordingCountdownTimer = setInterval(() => {
+    countdown--;
+    if (countdown > 0) {
+      btn.textContent = `Listening… ${countdown}s`;
+    }
+  }, 1000);
+
+  _mediaRecorder.onstop = async () => {
+    clearInterval(_recordingCountdownTimer);
+    _recordingCountdownTimer = null;
+    stopMicStream();
+
+    if (_recordingChunks.length === 0) {
+      resetWhatsPlayingBtn();
+      showToast("No audio recorded. Please try again.");
+      return;
+    }
+
+    const blob = new Blob(_recordingChunks, { type: mimeType });
+    _recordingChunks = [];
+    await identifySong(blob);
+  };
+
+  _mediaRecorder.start();
+  setTimeout(() => {
+    if (_mediaRecorder && _mediaRecorder.state === "recording") {
+      _mediaRecorder.stop();
+    }
+  }, RECORD_DURATION_MS);
+}
+
+function stopMicStream() {
+  if (_micStream) {
+    _micStream.getTracks().forEach((t) => t.stop());
+    _micStream = null;
+  }
+}
+
+function resetWhatsPlayingBtn() {
+  const btn = document.getElementById("whats-playing-btn");
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = "WHAT'S PLAYING?";
+    btn.classList.remove("loading");
+  }
+  triggerVizState("done");
+}
+
+function setWhatsPlayingStatus(phase, message) {
+  const el = document.getElementById("whats-playing-status");
+  if (!el) return;
+  el.textContent = message;
+  el.dataset.phase = phase;
+}
+
+async function identifySong(blob) {
+  const btn = document.getElementById("whats-playing-btn");
+  btn.textContent = "Identifying…";
+  setWhatsPlayingStatus("identifying", "Recognizing song…");
+
+  const formData = new FormData();
+  formData.append("audio", blob, "clip.webm");
+
+  try {
+    const res = await fetch("/identify", { method: "POST", body: formData });
+
+    if (res.status === 404) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || "Song not recognized. Try again closer to the speaker.");
+      resetWhatsPlayingBtn();
+      setWhatsPlayingStatus("", "");
+      return;
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const { title, artist } = await res.json();
+    setWhatsPlayingStatus("", "");
+    resetWhatsPlayingBtn();
+
+    // Use a dummy off-DOM button so handleFindSimilar's btn.disabled/textContent calls are safe
+    const dummyBtn = document.createElement("button");
+    await handleFindSimilar(title, artist, dummyBtn);
+
+    // Prepend identified song banner after results render
+    const banner = document.createElement("div");
+    banner.className = "identified-song-banner";
+    banner.innerHTML = `<span class="identified-label">Identified</span> <strong>${escHtml(title)}</strong> <span>by ${escHtml(artist)}</span>`;
+    resultsPanel().prepend(banner);
+  } catch (err) {
+    showToast("Identification failed: " + err.message);
+    resetWhatsPlayingBtn();
+    setWhatsPlayingStatus("", "");
+    triggerVizState("done");
+  }
 }
 
 // ── Find Similar Handler ──────────────────────────────────────

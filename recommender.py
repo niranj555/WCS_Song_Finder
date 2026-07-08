@@ -337,25 +337,22 @@ DIVERSITY RULES (strictly enforced):
         songs_block = "\n".join(f"- {s}" for s in community_songs)
         prompt += f"""
 
-COMMUNITY SONG POOL — YOU MUST SELECT FROM THIS LIST:
-The following songs are actively played at WCS events and competitions. They are real and
-community-verified. You MUST choose your 5 recommendations from this list.
-
-For each recommendation, scan this list for songs that match the descriptors above.
-Only go outside this list if you cannot find enough matching songs within it — and even
-then, only include songs you are 100% certain exist.
+COMMUNITY SONG POOL — VERIFIED WCS-FRIENDLY SONGS:
+These songs are actively played at WCS events and are community-verified as real and dance-appropriate.
 
 {songs_block}
 
-HOW TO SELECT:
-1. Read the descriptors (tempo, genre, tone, predictability, sharpness, elasticity, risk).
-2. Scan the list above and identify songs that GENUINELY match ALL descriptors — especially genre.
-   For each candidate song, confirm from your knowledge: "Does this specific song actually belong
-   to the requested genre?" Do not guess based on artist name. Discard any song you are not
-   certain fits the genre.
-3. Pick the best 5 from what remains, ensuring no two songs are by the same artist.
-4. If fewer than 5 songs from the list genuinely fit the genre, supplement with other verified
-   songs you are certain about — but never include a song in the wrong genre."""
+SCORING APPROACH — give equal weight to both criteria:
+1. DESCRIPTOR FIT: How well does the song match the tempo, genre, tone, predictability, sharpness, elasticity, and risk requested?
+2. POOL MEMBERSHIP: Is the song in the community pool above?
+
+A song that scores high on BOTH is the ideal pick.
+A song that scores high on ONE is acceptable — either a strong descriptor match outside the pool, or a pool song that fits the descriptors reasonably well.
+A song that scores low on BOTH should never be chosen.
+
+AIM FOR: as many songs as possible that satisfy both criteria. Supplement with non-pool songs only when the pool lacks sufficient descriptor-matching options, and supplement with weaker pool fits only when non-pool alternatives are unclear or uncertain.
+For each candidate, confirm from your knowledge that the song genuinely belongs to the requested genre — do not infer from artist name alone.
+Never include a song you cannot verify exists. Genre must be exact. Vary artists — no two songs by the same artist."""
 
     prompt += """
 
@@ -500,7 +497,7 @@ async def stream_recommendations(req: DescriptorRequest) -> AsyncGenerator[dict,
     community = get_community_songs()
     community_set = get_community_songs_set()
     prompt = build_user_prompt(req, community_songs=community)
-    log.info("Calling Claude claude-sonnet-4-6 (SSE streaming, community_songs=%d)…", len(community))
+    log.info("Calling Claude claude-opus-4-7 (SSE streaming, community_songs=%d)…", len(community))
 
     full_text = ""
     in_string = False
@@ -511,9 +508,9 @@ async def stream_recommendations(req: DescriptorRequest) -> AsyncGenerator[dict,
 
     try:
         async with async_client.messages.stream(
-            model="claude-sonnet-4-6",
-            max_tokens=4000,
-            system=SYSTEM_PROMPT,
+            model="claude-opus-4-7",
+            max_tokens=6000,
+            system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
             async for chunk in stream.text_stream:
@@ -603,9 +600,9 @@ def get_djset(req: DescriptorRequest) -> dict:
     log.info("Calling Claude for DJ set (community_songs=%d)…", len(community))
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=6000,
-            system=DJ_SYSTEM_PROMPT,
+            model="claude-opus-4-7",
+            max_tokens=8000,
+            system=[{"type": "text", "text": DJ_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         )
     except anthropic.APIStatusError as e:
@@ -755,9 +752,9 @@ def get_covers_remixes(req: DescriptorRequest) -> dict:
     log.info("Calling Claude for covers & remixes…")
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=4000,
-            system=COVERS_REMIXES_SYSTEM_PROMPT,
+            model="claude-opus-4-7",
+            max_tokens=6000,
+            system=[{"type": "text", "text": COVERS_REMIXES_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         )
     except anthropic.APIStatusError as e:
@@ -839,9 +836,9 @@ All 5 recommendations must be real songs. Vary the artists."""
     log.info("Calling Claude for similar songs to '%s' by '%s'…", title, artist)
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=4000,
-            system=SIMILAR_SYSTEM_PROMPT,
+            model="claude-opus-4-7",
+            max_tokens=6000,
+            system=[{"type": "text", "text": SIMILAR_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         )
     except anthropic.APIStatusError as e:

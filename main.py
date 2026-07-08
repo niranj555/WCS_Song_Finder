@@ -5,7 +5,8 @@ import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Form
+import httpx
+from fastapi import FastAPI, Request, Form, File, UploadFile
 from pydantic import BaseModel
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -150,6 +151,46 @@ async def similar(request: Request, req: SimilarRequest):
     except Exception as e:
         log.error("Unhandled error in /similar:\n%s", traceback.format_exc())
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/identify")
+async def identify(request: Request, audio: UploadFile = File(...)):
+    if not request.session.get("user"):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not settings.audd_api_key:
+        return JSONResponse(status_code=503, content={"error": "Song recognition not configured (missing AUDD_API_KEY)."})
+    log.info("Identify request | filename=%r content_type=%r", audio.filename, audio.content_type)
+    start = time.monotonic()
+    try:
+        audio_bytes = await audio.read()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.audd.io/",
+                data={"api_token": settings.audd_api_key, "return": "apple_music,spotify"},
+                files={"file": (audio.filename or "clip.webm", audio_bytes, audio.content_type or "audio/webm")},
+            )
+        resp.raise_for_status()
+        data = resp.json()
+    except httpx.TimeoutException:
+        log.warning("AudD API timed out")
+        return JSONResponse(status_code=504, content={"error": "Song recognition timed out. Try again."})
+    except httpx.HTTPStatusError as e:
+        log.error("AudD API HTTP error: %s", e)
+        return JSONResponse(status_code=502, content={"error": "Song recognition service error."})
+    except Exception:
+        log.error("Identify error:\n%s", traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": "Song recognition failed."})
+    elapsed = (time.monotonic() - start) * 1000
+    log.info("AudD responded in %.0fms | status=%r", elapsed, data.get("status"))
+    if data.get("status") != "success" or not data.get("result"):
+        return JSONResponse(status_code=404, content={"error": "Song not recognized. Try holding the mic closer to the speaker."})
+    result = data["result"]
+    title = result.get("title", "")
+    artist = result.get("artist", "")
+    if not title or not artist:
+        return JSONResponse(status_code=404, content={"error": "Song recognized but metadata incomplete."})
+    log.info("Identified: title=%r artist=%r", title, artist)
+    return JSONResponse(content={"title": title, "artist": artist})
 
 
 @app.post("/djset")

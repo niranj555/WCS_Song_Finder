@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     db_path: str = "wcs_cache.db"
     test_username: str = ""
     test_password: str = ""
+    audd_api_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
