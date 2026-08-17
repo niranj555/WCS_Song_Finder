@@ -184,6 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
   findBtn.addEventListener("click", handleFind);
   document.getElementById("djset-btn").addEventListener("click", handleDJSet);
   document.getElementById("covers-btn").addEventListener("click", handleCovers);
+  document.getElementById("remixes-btn").addEventListener("click", handleRemixes);
+  document.getElementById("instrumentals-btn").addEventListener("click", handleInstrumentals);
   document.getElementById("whats-playing-btn")?.addEventListener("click", handleWhatsPlaying);
   renderHistoryPanel();
   renderFavoritesPanel();
@@ -686,7 +688,7 @@ async function handleDJSet() {
   }
 }
 
-// ── Covers & Remixes Handler ──────────────────────────────────
+// ── Covers Handler ────────────────────────────────────────────
 async function handleCovers() {
   if (state.breakBehavior.length === 0) {
     showToast("Please select at least one Break Behavior.");
@@ -719,7 +721,7 @@ async function handleCovers() {
       additional_context: "",
     };
 
-    const res = await fetch("/covers", {
+    const res = await fetch("/covers-only", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -731,16 +733,169 @@ async function handleCovers() {
     }
 
     const data = await res.json();
-    renderCoversRemixes(data);
+    renderCoversOnly(data);
   } catch (err) {
     showToast(`Error: ${err.message}`);
     showEmptyState();
   } finally {
     btn.disabled = false;
-    btn.textContent = "COVERS & REMIXES";
+    btn.textContent = "COVERS";
     btn.classList.remove("loading");
     triggerVizState('done');
   }
+}
+
+function renderCoversOnly(data) {
+  const { recommendations = [], curator_note = "" } = data;
+  const noteHtml = curator_note
+    ? `<div class="curator-note"><strong>Curator's Note</strong>${escHtml(curator_note)}</div>`
+    : "";
+  const cardsHtml = recommendations.map((song, i) => renderCoverCard(song, i)).join("");
+  resultsPanel().innerHTML = `
+    <div class="covers-banner">COVERS</div>
+    ${noteHtml}
+    <div class="songs-grid">${cardsHtml}</div>`;
+  animateBatchCards(resultsPanel());
+}
+
+// ── Remixes Handler ───────────────────────────────────────────
+async function handleRemixes() {
+  if (state.breakBehavior.length === 0) {
+    showToast("Please select at least one Break Behavior.");
+    return;
+  }
+  if (state.emotionalTone.length === 0) {
+    showToast("Please select at least one Emotional Tone.");
+    return;
+  }
+
+  const btn = document.getElementById("remixes-btn");
+  btn.disabled = true;
+  btn.textContent = "SEARCHING…";
+  btn.classList.add("loading");
+  triggerVizState('loading');
+  switchTab("results");
+  showSkeleton(5);
+
+  try {
+    const payload = {
+      tempo_feel: state.tempoFeel,
+      phrase_predictability: state.phrasePredict,
+      break_behavior: state.breakBehavior,
+      accent_sharpness: state.accentSharp,
+      elasticity_potential: state.elasticity,
+      risk_level: state.riskLevel,
+      emotional_tone: state.emotionalTone,
+      genre: state.genre,
+      bpm_range: state.bpmRange,
+      additional_context: "",
+    };
+
+    const res = await fetch("/remixes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    renderRemixes(data);
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+    showEmptyState();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "REMIXES";
+    btn.classList.remove("loading");
+    triggerVizState('done');
+  }
+}
+
+function renderRemixes(data) {
+  const { recommendations = [], curator_note = "" } = data;
+  const noteHtml = curator_note
+    ? `<div class="curator-note"><strong>Curator's Note</strong>${escHtml(curator_note)}</div>`
+    : "";
+  const cardsHtml = recommendations.map((song, i) => renderCoverCard(song, i)).join("");
+  resultsPanel().innerHTML = `
+    <div class="remixes-banner">REMIXES</div>
+    ${noteHtml}
+    <div class="songs-grid">${cardsHtml}</div>`;
+  animateBatchCards(resultsPanel());
+}
+
+// ── Instrumentals Handler ─────────────────────────────────────
+async function handleInstrumentals() {
+  if (state.breakBehavior.length === 0) {
+    showToast("Please select at least one Break Behavior.");
+    return;
+  }
+  if (state.emotionalTone.length === 0) {
+    showToast("Please select at least one Emotional Tone.");
+    return;
+  }
+
+  const btn = document.getElementById("instrumentals-btn");
+  btn.disabled = true;
+  btn.textContent = "SEARCHING…";
+  btn.classList.add("loading");
+  triggerVizState('loading');
+  switchTab("results");
+  showSkeleton(5);
+
+  try {
+    const payload = {
+      tempo_feel: state.tempoFeel,
+      phrase_predictability: state.phrasePredict,
+      break_behavior: state.breakBehavior,
+      accent_sharpness: state.accentSharp,
+      elasticity_potential: state.elasticity,
+      risk_level: state.riskLevel,
+      emotional_tone: state.emotionalTone,
+      genre: state.genre,
+      bpm_range: state.bpmRange,
+      additional_context: "",
+    };
+
+    const res = await fetch("/instrumentals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    renderInstrumentals(data);
+  } catch (err) {
+    showToast(`Error: ${err.message}`);
+    showEmptyState();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "INSTRUMENTALS";
+    btn.classList.remove("loading");
+    triggerVizState('done');
+  }
+}
+
+function renderInstrumentals(data) {
+  const { recommendations = [], curator_note = "" } = data;
+  const noteHtml = curator_note
+    ? `<div class="curator-note"><strong>Curator's Note</strong>${escHtml(curator_note)}</div>`
+    : "";
+  const cardsHtml = recommendations.map((song, i) => renderCard(song, i)).join("");
+  resultsPanel().innerHTML = `
+    <div class="instrumentals-banner">INSTRUMENTALS</div>
+    ${noteHtml}
+    <div class="songs-grid">${cardsHtml}</div>`;
+  animateBatchCards(resultsPanel());
 }
 
 function renderCoversRemixes(data) {

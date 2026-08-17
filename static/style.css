@@ -425,6 +425,44 @@ textarea:focus { border-color: var(--accent); }
 .btn-covers:hover { background: rgba(187, 136, 255, 0.08); box-shadow: 0 0 12px rgba(187,136,255,0.2); }
 .btn-covers:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-covers.loading { animation: pulse-btn 1.2s ease-in-out infinite; }
+.btn-remixes {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #00d4ff;
+  background: transparent;
+  color: #00d4ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+  font-family: inherit;
+}
+.btn-remixes:hover { background: rgba(0, 212, 255, 0.08); box-shadow: 0 0 12px rgba(0,212,255,0.2); }
+.btn-remixes:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-remixes.loading { animation: pulse-btn 1.2s ease-in-out infinite; }
+.btn-instrumentals {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #ffcc44;
+  background: transparent;
+  color: #ffcc44;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+  font-family: inherit;
+}
+.btn-instrumentals:hover { background: rgba(255, 204, 68, 0.08); box-shadow: 0 0 12px rgba(255,204,68,0.2); }
+.btn-instrumentals:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-instrumentals.loading { animation: pulse-btn 1.2s ease-in-out infinite; }
 
 @keyframes pulse-btn {
   0%, 100% { opacity: 0.7; }
@@ -983,6 +1021,30 @@ textarea:focus { border-color: var(--accent); }
   text-transform: uppercase;
   color: #bb88ff;
   border: 1px solid rgba(187, 136, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+.remixes-banner {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #00d4ff;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+.instrumentals-banner {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffcc44;
+  border: 1px solid rgba(255, 204, 68, 0.2);
   border-radius: 8px;
   padding: 6px 14px;
   margin-bottom: 16px;

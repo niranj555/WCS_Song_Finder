@@ -342,17 +342,20 @@ These songs are actively played at WCS events and are community-verified as real
 
 {songs_block}
 
-SCORING APPROACH — give equal weight to both criteria:
-1. DESCRIPTOR FIT: How well does the song match the tempo, genre, tone, predictability, sharpness, elasticity, and risk requested?
-2. POOL MEMBERSHIP: Is the song in the community pool above?
+REQUIRED COMPOSITION — aim for this split across your 5 recommendations:
+• 3 songs FROM the community pool above (pro DJ swing picks)
+• 2 songs NOT in the pool — your own discovery picks
 
-A song that scores high on BOTH is the ideal pick.
-A song that scores high on ONE is acceptable — either a strong descriptor match outside the pool, or a pool song that fits the descriptors reasonably well.
-A song that scores low on BOTH should never be chosen.
+POOL SONGS (target: 3):
+- Scan the pool for songs that genuinely match the descriptors (tempo, genre, tone, predictability, sharpness, elasticity, risk).
+- Confirm from your knowledge that each song belongs to the requested genre — do not infer from artist name alone.
+- If the pool has fewer than 3 songs that genuinely fit the descriptors, fill the remaining slots with additional discovery picks instead — never force a poor-fitting pool song just to hit the quota.
 
-AIM FOR: as many songs as possible that satisfy both criteria. Supplement with non-pool songs only when the pool lacks sufficient descriptor-matching options, and supplement with weaker pool fits only when non-pool alternatives are unclear or uncertain.
-For each candidate, confirm from your knowledge that the song genuinely belongs to the requested genre — do not infer from artist name alone.
-Never include a song you cannot verify exists. Genre must be exact. Vary artists — no two songs by the same artist."""
+DISCOVERY SONGS (target: 2, more if pool falls short):
+- Songs NOT in the pool that are strong descriptor matches and that you are certain exist.
+- Prefer lesser-known or emerging artists the WCS community would love discovering.
+
+Across all 5 songs: no two songs by the same artist. Genre must be exact. Never include a song you cannot verify exists."""
 
     prompt += """
 
@@ -796,6 +799,394 @@ def get_covers_remixes(req: DescriptorRequest) -> dict:
         return result
     except json.JSONDecodeError:
         log.error("Failed to parse covers/remixes JSON:\n%s", raw_text[:500])
+        raise
+
+
+# ── Covers only ───────────────────────────────────────────────
+
+COVERS_SYSTEM_PROMPT = """You are a world-class West Coast Swing dance music curator specializing in covers — real recordings of songs originally performed by a different artist.
+You understand how a great cover reinterprets the emotional tone of a song: sometimes making a dark song playful, a driving anthem intimate, or an upbeat pop track soulful and elastic.
+
+ACCURACY RULES — strict, not suggestions:
+
+1. COVERS — KNOW THE RELEASE: Only include a cover if you know the specific release (album, EP, soundtrack, single). Do not infer covers from an artist's style or genre.
+
+2. WHEN IN DOUBT, PICK A DIFFERENT SONG: Do not guess or substitute. Choose a completely different, well-documented cover you are certain exists.
+
+3. CERTAINTY TEST — APPLIES TO EVERY ENTRY: Before including any cover, confirm: "I could find this specific version on Spotify or YouTube right now, under this exact artist name and title." If the answer is anything less than "yes, definitely" — replace it.
+
+4. SELF-CHECK BEFORE FINALIZING: Run through your full list one final time. For each entry ask: "Do I know the covering artist released this specific track?" Replace any entry where the answer is uncertain.
+
+5. ALBUM COMMITMENT: You must provide the exact album, EP, or single release this cover appears on (with release year). If you cannot name it with confidence, replace the entry.
+
+6. NO REMIXES: Every entry must be a cover — a different artist recording the song. Producer remixes of the original do not count.
+
+Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
+
+
+def build_covers_prompt(req: DescriptorRequest) -> str:
+    breaks = ", ".join(req.break_behavior) if req.break_behavior else "not specified"
+    tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
+    genre_line = ", ".join(req.genre) if req.genre else "All genres"
+
+    return f"""A West Coast Swing dancer wants ONLY covers — no original recordings and no remixes. Every entry must be a cover of a song originally by a different artist.
+
+REQUIRED CHARACTERISTICS:
+
+TEMPO FEEL: {req.tempo_feel}
+→ Only covers that actually dance at this feel.
+
+PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
+→ The cover version must exhibit this phrase structure — not just the original.
+
+BREAK BEHAVIOR: {breaks}
+→ Match the break behavior of the specific cover version.
+
+ACCENT SHARPNESS: {req.accent_sharpness}/5 — {SHARPNESS_LABELS[req.accent_sharpness]}
+ELASTICITY POTENTIAL: {req.elasticity_potential}/5 — {ELASTICITY_LABELS[req.elasticity_potential]}
+RISK LEVEL: {req.risk_level}/5 — {RISK_LABELS[req.risk_level]}
+EMOTIONAL TONE: {tones}
+PREFERRED GENRE: {genre_line}
+
+Recommend exactly 5 covers. HOW TO SELECT — anchor, then filter:
+First, mentally recall 10–15 real covers you are certain exist.
+Then filter to the 5 that best match the descriptors. Do NOT invent versions that would fit — start from what you know is real.
+
+Return ONLY this JSON structure:
+
+{{
+  "recommendations": [
+    {{
+      "title": "Cover title (usually the original song title unless the artist retitled it)",
+      "artist": "The covering artist (not the original artist)",
+      "type": "cover",
+      "original_title": "Original song title",
+      "original_artist": "Original song artist",
+      "album": "The album, EP, or single this cover appears on (Year). Required. If you cannot name it, replace this entry.",
+      "why_it_fits": "2-3 sentences explaining why this cover works for WCS dancing at this vibe, and how it differs from the original.",
+      "dance_notes": "1-2 sentences with a specific WCS musicality tip for this version.",
+      "suggested_patterns": ["pattern 1", "pattern 2", "pattern 3"],
+      "competition_history": "If this cover has been used in notable WCS competitions or by known pros, mention it. Otherwise empty string.",
+      "listen_query": "Artist Name - Song Title"
+    }}
+  ],
+  "curator_note": "1-2 sentences about what makes this cover selection special for WCS dancing."
+}}
+
+All 5 must be verified covers. Vary the covering artists."""
+
+
+def get_covers_only(req: DescriptorRequest) -> dict:
+    key = "coversonly_" + _cache_key(req)
+    cached = _cache_get("cache", key)
+    if cached:
+        log.info("Covers-only cache hit")
+        return cached
+
+    prompt = build_covers_prompt(req)
+    log.info("Calling Claude for covers only…")
+    try:
+        response = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=6000,
+            system=[{"type": "text", "text": COVERS_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except anthropic.APIStatusError as e:
+        log.error("Anthropic API error %s: %s", e.status_code, e.message)
+        raise
+    except anthropic.APIConnectionError as e:
+        log.error("Anthropic connection error: %s", e)
+        raise
+    except Exception:
+        log.error("Unexpected error calling Claude:\n%s", traceback.format_exc())
+        raise
+
+    log.info(
+        "Claude finished covers-only | stop_reason=%s input_tokens=%s output_tokens=%s",
+        response.stop_reason,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+    )
+
+    raw_text = ""
+    for block in response.content:
+        if block.type == "text":
+            raw_text = block.text
+            break
+
+    if not raw_text:
+        raise ValueError("Claude returned no text content")
+
+    raw_text = raw_text.strip()
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("```", 2)[1]
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+        raw_text = raw_text.rsplit("```", 1)[0].strip()
+
+    try:
+        result = json.loads(raw_text)
+        _cache_set("cache", key, result)
+        return result
+    except json.JSONDecodeError:
+        log.error("Failed to parse covers-only JSON:\n%s", raw_text[:500])
+        raise
+
+
+# ── Remixes only ───────────────────────────────────────────────
+
+REMIXES_SYSTEM_PROMPT = """You are a world-class West Coast Swing dance music curator specializing in remixes and producer edits.
+You understand how a great remix transforms the dance feel of a song: a slower remix opens up elasticity, a funkier remix adds groove and swing, a sped-up edit creates energy and urgency.
+
+ACCURACY RULES — strict, not suggestions:
+
+1. REMIXES — NAME THE REMIXER: Every remix must have a specific named producer (e.g. "Kaytranada Remix", "Dave Audé Remix"). "Club Mix" or "Extended Mix" with no named remixer is a hallucination — do not include it.
+
+2. WHEN IN DOUBT, PICK A DIFFERENT SONG: Do not guess or substitute. Choose a completely different, well-documented remix you are certain exists.
+
+3. CERTAINTY TEST — APPLIES TO EVERY ENTRY: Before including any remix, confirm: "I could find this specific version on Spotify or YouTube right now, under this exact artist name and title." If the answer is anything less than "yes, definitely" — replace it.
+
+4. SELF-CHECK BEFORE FINALIZING: Run through your full list one final time. For each entry ask: "Do I know the remixer's name with certainty?" Replace any entry where the answer is uncertain.
+
+5. ALBUM COMMITMENT: You must provide the exact album, EP, or single release this remix appears on (with release year). If you cannot name it with confidence, replace the entry.
+
+6. NO COVERS: Every entry must be a remix or producer edit — not a cover recording by a different artist.
+
+Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
+
+
+def build_remixes_prompt(req: DescriptorRequest) -> str:
+    breaks = ", ".join(req.break_behavior) if req.break_behavior else "not specified"
+    tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
+    genre_line = ", ".join(req.genre) if req.genre else "All genres"
+
+    return f"""A West Coast Swing dancer wants ONLY remixes and producer edits — no original recordings and no covers. Every entry must credit a specific named remixer or producer.
+
+REQUIRED CHARACTERISTICS:
+
+TEMPO FEEL: {req.tempo_feel}
+→ Only remixes that actually dance at this feel.
+
+PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
+→ The remix version must exhibit this phrase structure.
+
+BREAK BEHAVIOR: {breaks}
+→ Match the break behavior of the specific remix version, not assumed from the original.
+
+ACCENT SHARPNESS: {req.accent_sharpness}/5 — {SHARPNESS_LABELS[req.accent_sharpness]}
+→ Remixes often change this dramatically from the original. Match the remix's actual texture.
+
+ELASTICITY POTENTIAL: {req.elasticity_potential}/5 — {ELASTICITY_LABELS[req.elasticity_potential]}
+RISK LEVEL: {req.risk_level}/5 — {RISK_LABELS[req.risk_level]}
+EMOTIONAL TONE: {tones}
+PREFERRED GENRE: {genre_line}
+
+Recommend exactly 5 remixes. HOW TO SELECT — anchor, then filter:
+First, mentally recall 10–15 real remixes you are certain exist with named producers.
+Then filter to the 5 that best match the descriptors. Do NOT invent remixes that would fit — start from what you know is real.
+
+Return ONLY this JSON structure:
+
+{{
+  "recommendations": [
+    {{
+      "title": "Exact remix title including remixer name (e.g. 'Crazy in Love (Beyoncé ft. Jay-Z — Kaytranada Remix)')",
+      "artist": "The remixer or producer",
+      "type": "remix",
+      "original_title": "Original song title",
+      "original_artist": "Original song artist",
+      "album": "The album, EP, or single this remix appears on (Year). Required. If you cannot name it, replace this entry.",
+      "why_it_fits": "2-3 sentences explaining why this remix works for WCS dancing at this vibe, and how it differs from the original.",
+      "dance_notes": "1-2 sentences with a specific WCS musicality tip for this remix.",
+      "suggested_patterns": ["pattern 1", "pattern 2", "pattern 3"],
+      "competition_history": "If this remix has been used in notable WCS competitions or by known pros, mention it. Otherwise empty string.",
+      "listen_query": "Remixer - Original Title"
+    }}
+  ],
+  "curator_note": "1-2 sentences about what makes this remix selection special for WCS dancing."
+}}
+
+All 5 must be verified remixes with named producers. Vary the remixers."""
+
+
+def get_remixes_only(req: DescriptorRequest) -> dict:
+    key = "remixesonly_" + _cache_key(req)
+    cached = _cache_get("cache", key)
+    if cached:
+        log.info("Remixes-only cache hit")
+        return cached
+
+    prompt = build_remixes_prompt(req)
+    log.info("Calling Claude for remixes only…")
+    try:
+        response = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=6000,
+            system=[{"type": "text", "text": REMIXES_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except anthropic.APIStatusError as e:
+        log.error("Anthropic API error %s: %s", e.status_code, e.message)
+        raise
+    except anthropic.APIConnectionError as e:
+        log.error("Anthropic connection error: %s", e)
+        raise
+    except Exception:
+        log.error("Unexpected error calling Claude:\n%s", traceback.format_exc())
+        raise
+
+    log.info(
+        "Claude finished remixes-only | stop_reason=%s input_tokens=%s output_tokens=%s",
+        response.stop_reason,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+    )
+
+    raw_text = ""
+    for block in response.content:
+        if block.type == "text":
+            raw_text = block.text
+            break
+
+    if not raw_text:
+        raise ValueError("Claude returned no text content")
+
+    raw_text = raw_text.strip()
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("```", 2)[1]
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+        raw_text = raw_text.rsplit("```", 1)[0].strip()
+
+    try:
+        result = json.loads(raw_text)
+        _cache_set("cache", key, result)
+        return result
+    except json.JSONDecodeError:
+        log.error("Failed to parse remixes-only JSON:\n%s", raw_text[:500])
+        raise
+
+
+# ── Instrumentals ──────────────────────────────────────────────
+
+INSTRUMENTALS_SYSTEM_PROMPT = """You are a world-class West Coast Swing dance music curator specializing in instrumental tracks — songs with no lead vocals that work beautifully for West Coast Swing.
+
+You understand how instrumental music changes the dance experience: dancers must find their own phrasing without lyrical cues, elasticity comes purely from groove and melody, and the absence of vocals rewards dancers who listen deeply to musical texture. These are often favorites of advanced WCS dancers.
+
+ACCURACY RULES — strict, not suggestions:
+
+1. TRULY INSTRUMENTAL: Verify the track is truly instrumental — no lead vocalist. Do not include songs where vocals are incidental, sampled, or minimal. Only include tracks where the absence of a lead vocalist is the defining characteristic.
+
+2. CERTAINTY TEST: Before including any track, confirm: "I could find this specific instrumental on Spotify or YouTube right now." If the answer is anything less than "yes, definitely" — replace it.
+
+3. WHEN IN DOUBT, PICK A DIFFERENT SONG: Do not guess. Choose a well-documented instrumental you are certain exists.
+
+4. SELF-CHECK BEFORE FINALIZING: Run through your full list one final time. For each entry ask: "Is this genuinely instrumental — no lead vocals?" Replace any entry where the answer is uncertain.
+
+5. ALBUM COMMITMENT: Provide the exact album, EP, or single (with release year). If you cannot name it, replace the entry.
+
+Return your response as valid JSON only — no markdown, no explanation outside the JSON."""
+
+
+def build_instrumentals_prompt(req: DescriptorRequest) -> str:
+    breaks = ", ".join(req.break_behavior) if req.break_behavior else "not specified"
+    tones = ", ".join(req.emotional_tone) if req.emotional_tone else "not specified"
+    genre_line = ", ".join(req.genre) if req.genre else "All genres"
+
+    return f"""A West Coast Swing dancer wants ONLY instrumental songs — no lead vocals. Jazz instrumentals, lo-fi beats, funk, soul orchestrations, producer tracks, and instrumental hip-hop all qualify if they match the descriptors and work for WCS.
+
+REQUIRED CHARACTERISTICS:
+
+TEMPO FEEL: {req.tempo_feel}
+PHRASE PREDICTABILITY: {req.phrase_predictability}/5 — {PREDICTABILITY_LABELS[req.phrase_predictability]}
+BREAK BEHAVIOR: {breaks}
+ACCENT SHARPNESS: {req.accent_sharpness}/5 — {SHARPNESS_LABELS[req.accent_sharpness]}
+ELASTICITY POTENTIAL: {req.elasticity_potential}/5 — {ELASTICITY_LABELS[req.elasticity_potential]}
+RISK LEVEL: {req.risk_level}/5 — {RISK_LABELS[req.risk_level]}
+EMOTIONAL TONE: {tones}
+PREFERRED GENRE: {genre_line}
+
+Recommend exactly 5 instrumental songs. HOW TO SELECT — anchor, then filter:
+First, mentally recall 10–15 real instrumental tracks you are certain exist.
+Then filter to the 5 that best match the descriptors and work well for WCS.
+
+Return ONLY this JSON structure:
+
+{{
+  "recommendations": [
+    {{
+      "title": "Exact song title",
+      "artist": "Exact artist or producer name",
+      "album": "Album or EP name (Year). Required. If you cannot name it, replace this song.",
+      "why_it_fits": "2-3 sentences explaining why this instrumental works for WCS dancing at this vibe. Reference specific musical moments or textures.",
+      "dance_notes": "1-2 sentences with a specific WCS musicality tip — what to listen for without lyrics to guide you.",
+      "suggested_patterns": ["pattern 1", "pattern 2", "pattern 3"],
+      "competition_history": "If this track has been used in notable WCS competitions or by known pros, mention it. Otherwise empty string.",
+      "listen_query": "Artist Name - Song Title"
+    }}
+  ],
+  "curator_note": "1-2 sentences about what makes this instrumental selection special for WCS dancing."
+}}
+
+All 5 must be verified instrumentals with no lead vocals. Vary the artists."""
+
+
+def get_instrumentals(req: DescriptorRequest) -> dict:
+    key = "instrumentals_" + _cache_key(req)
+    cached = _cache_get("cache", key)
+    if cached:
+        log.info("Instrumentals cache hit")
+        return cached
+
+    prompt = build_instrumentals_prompt(req)
+    log.info("Calling Claude for instrumentals…")
+    try:
+        response = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=6000,
+            system=[{"type": "text", "text": INSTRUMENTALS_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except anthropic.APIStatusError as e:
+        log.error("Anthropic API error %s: %s", e.status_code, e.message)
+        raise
+    except anthropic.APIConnectionError as e:
+        log.error("Anthropic connection error: %s", e)
+        raise
+    except Exception:
+        log.error("Unexpected error calling Claude:\n%s", traceback.format_exc())
+        raise
+
+    log.info(
+        "Claude finished instrumentals | stop_reason=%s input_tokens=%s output_tokens=%s",
+        response.stop_reason,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+    )
+
+    raw_text = ""
+    for block in response.content:
+        if block.type == "text":
+            raw_text = block.text
+            break
+
+    if not raw_text:
+        raise ValueError("Claude returned no text content")
+
+    raw_text = raw_text.strip()
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("```", 2)[1]
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+        raw_text = raw_text.rsplit("```", 1)[0].strip()
+
+    try:
+        result = json.loads(raw_text)
+        _cache_set("cache", key, result)
+        return result
+    except json.JSONDecodeError:
+        log.error("Failed to parse instrumentals JSON:\n%s", raw_text[:500])
         raise
 
 

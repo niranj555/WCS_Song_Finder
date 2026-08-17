@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
-from recommender import DescriptorRequest, stream_recommendations, get_similar_songs, get_djset, get_covers_remixes
+from recommender import DescriptorRequest, stream_recommendations, get_similar_songs, get_djset, get_covers_remixes, get_covers_only, get_remixes_only, get_instrumentals
 from sources import refresh_all_sources, wcs_songs_count
 
 logging.basicConfig(
@@ -163,6 +163,7 @@ async def identify(request: Request, audio: UploadFile = File(...)):
     start = time.monotonic()
     try:
         audio_bytes = await audio.read()
+        log.info("Audio received: %d bytes, content_type=%r", len(audio_bytes), audio.content_type)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 "https://api.audd.io/",
@@ -181,8 +182,16 @@ async def identify(request: Request, audio: UploadFile = File(...)):
         log.error("Identify error:\n%s", traceback.format_exc())
         return JSONResponse(status_code=500, content={"error": "Song recognition failed."})
     elapsed = (time.monotonic() - start) * 1000
-    log.info("AudD responded in %.0fms | status=%r", elapsed, data.get("status"))
-    if data.get("status") != "success" or not data.get("result"):
+    log.info("AudD responded in %.0fms | status=%r result=%r error=%r",
+             elapsed, data.get("status"), bool(data.get("result")), data.get("error"))
+
+    if data.get("status") == "error":
+        audd_err = data.get("error", {})
+        log.warning("AudD API error: code=%s msg=%s", audd_err.get("error_code"), audd_err.get("error_message"))
+        return JSONResponse(status_code=502, content={"error": f"Song recognition service error: {audd_err.get('error_message', 'unknown')}"})
+
+    if not data.get("result"):
+        log.info("AudD: no match found (audio_bytes=%d)", len(audio_bytes))
         return JSONResponse(status_code=404, content={"error": "Song not recognized. Try holding the mic closer to the speaker."})
     result = data["result"]
     title = result.get("title", "")
@@ -229,6 +238,60 @@ async def covers(request: Request, req: DescriptorRequest):
         return JSONResponse(status_code=500, content={"error": f"Failed to parse Claude response: {e}"})
     except Exception as e:
         log.error("Unhandled error in /covers:\n%s", traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/covers-only")
+async def covers_only(request: Request, req: DescriptorRequest):
+    if not request.session.get("user"):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    log.info("Covers-only request | tempo=%s tones=%s genre=%s", req.tempo_feel, req.emotional_tone, req.genre)
+    start = time.monotonic()
+    try:
+        result = get_covers_only(req)
+        elapsed = (time.monotonic() - start) * 1000
+        log.info("Claude returned %d covers in %.0fms", len(result.get("recommendations", [])), elapsed)
+        return JSONResponse(content=result)
+    except json.JSONDecodeError as e:
+        return JSONResponse(status_code=500, content={"error": f"Failed to parse Claude response: {e}"})
+    except Exception as e:
+        log.error("Unhandled error in /covers-only:\n%s", traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/remixes")
+async def remixes(request: Request, req: DescriptorRequest):
+    if not request.session.get("user"):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    log.info("Remixes request | tempo=%s tones=%s genre=%s", req.tempo_feel, req.emotional_tone, req.genre)
+    start = time.monotonic()
+    try:
+        result = get_remixes_only(req)
+        elapsed = (time.monotonic() - start) * 1000
+        log.info("Claude returned %d remixes in %.0fms", len(result.get("recommendations", [])), elapsed)
+        return JSONResponse(content=result)
+    except json.JSONDecodeError as e:
+        return JSONResponse(status_code=500, content={"error": f"Failed to parse Claude response: {e}"})
+    except Exception as e:
+        log.error("Unhandled error in /remixes:\n%s", traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/instrumentals")
+async def instrumentals(request: Request, req: DescriptorRequest):
+    if not request.session.get("user"):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    log.info("Instrumentals request | tempo=%s tones=%s genre=%s", req.tempo_feel, req.emotional_tone, req.genre)
+    start = time.monotonic()
+    try:
+        result = get_instrumentals(req)
+        elapsed = (time.monotonic() - start) * 1000
+        log.info("Claude returned %d instrumentals in %.0fms", len(result.get("recommendations", [])), elapsed)
+        return JSONResponse(content=result)
+    except json.JSONDecodeError as e:
+        return JSONResponse(status_code=500, content={"error": f"Failed to parse Claude response: {e}"})
+    except Exception as e:
+        log.error("Unhandled error in /instrumentals:\n%s", traceback.format_exc())
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
